@@ -1,49 +1,118 @@
 package com.example.amethyst
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
-
-import amethyst.composeapp.generated.resources.Res
-import amethyst.composeapp.generated.resources.compose_multiplatform
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.amethyst.data.*
+import com.example.amethyst.ui.screens.SettingsScreen
+import com.example.amethyst.ui.screens.TaskDetailScreen
+import com.example.amethyst.ui.screens.TaskListScreen
+import com.example.amethyst.ui.theme.AmethystTheme
+import com.example.amethyst.ui.theme.ThemeState
+import com.example.amethyst.viewmodel.TaskViewModel
+import kotlinx.coroutines.launch
 
 @Composable
-@Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+    val isDarkMode by ThemeState.isDarkMode
+    val preferences = remember { Preferences.instance }
+    val vaultPath by preferences.vaultPath.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+
+    // Navigation state
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.TaskList) }
+    var selectedTaskId by remember { mutableStateOf<String?>(null) }
+
+    // Initialize repository and ViewModel
+    val repository = remember(vaultPath) {
+        if (vaultPath.isNotBlank()) {
+            val fileService = FileService()
+            val repo = TaskRepository(fileService, vaultPath)
+            coroutineScope.launch {
+                repo.loadTasks()
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+            repo
+        } else {
+            null
+        }
+    }
+
+    val viewModel: TaskViewModel? = repository?.let { repo ->
+        remember(repo) {
+            TaskViewModel(repo)
+        }
+    }
+
+    AmethystTheme(darkTheme = isDarkMode) {
+        when {
+            vaultPath.isBlank() -> {
+                // Show settings screen if vault path not configured
+                SettingsScreen(
+                    vaultPath = vaultPath,
+                    onVaultPathChange = { preferences.setVaultPath(it) },
+                    onNavigateBack = { /* No back navigation from initial setup */ },
+                    onPickFolder = {
+                        coroutineScope.launch {
+                            val folderPicker = FolderPicker()
+                            folderPicker.pickFolder()?.let { path ->
+                                preferences.setVaultPath(path)
+                            }
+                        }
+                    }
+                )
+            }
+            viewModel != null -> {
+                when (val screen = currentScreen) {
+                    is Screen.TaskList -> {
+                        TaskListScreen(
+                            viewModel = viewModel,
+                            onTaskClick = { task ->
+                                selectedTaskId = task.id
+                                currentScreen = Screen.TaskDetail
+                            },
+                            onAddTask = {
+                                selectedTaskId = null
+                                currentScreen = Screen.TaskDetail
+                            },
+                            onToggleTheme = {
+                                ThemeState.toggleTheme()
+                            }
+                        )
+                    }
+                    is Screen.TaskDetail -> {
+                        TaskDetailScreen(
+                            viewModel = viewModel,
+                            taskId = selectedTaskId,
+                            onNavigateBack = {
+                                currentScreen = Screen.TaskList
+                                selectedTaskId = null
+                            }
+                        )
+                    }
+                    is Screen.Settings -> {
+                        SettingsScreen(
+                            vaultPath = vaultPath,
+                            onVaultPathChange = { preferences.setVaultPath(it) },
+                            onNavigateBack = {
+                                currentScreen = Screen.TaskList
+                            },
+                            onPickFolder = {
+                                coroutineScope.launch {
+                                    val folderPicker = FolderPicker()
+                                    folderPicker.pickFolder()?.let { path ->
+                                        preferences.setVaultPath(path)
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+sealed class Screen {
+    object TaskList : Screen()
+    object TaskDetail : Screen()
+    object Settings : Screen()
 }
