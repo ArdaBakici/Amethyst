@@ -121,21 +121,31 @@ Task content in markdown format...
 
 ### Project Structure
 ```
-composeApp/src/
-├── commonMain/
-│   ├── kotlin/com/example/amethyst/
-│   │   ├── model/           # Data models (Task, Status, Priority, etc.)
-│   │   ├── data/            # Data layer (Repository, FileService, Serializer)
-│   │   ├── viewmodel/       # ViewModels
-│   │   ├── ui/
-│   │   │   ├── screens/     # UI screens
-│   │   │   └── theme/       # Theme and styling
-│   │   └── App.kt           # Main app entry point
-├── androidMain/             # Android-specific implementations
-├── iosMain/                 # iOS-specific implementations
-├── jvmMain/                 # Desktop-specific implementations
-├── jsMain/                  # Web JS-specific implementations
-└── wasmJsMain/             # Web Wasm-specific implementations
+Amethyst/
+├── composeApp/              # Shared multiplatform library
+│   └── src/
+│       ├── commonMain/      # Shared code across all platforms
+│       │   ├── model/       # Data models (Task, Status, Priority, etc.)
+│       │   ├── data/        # Data layer (Repository, FileService, Serializer)
+│       │   ├── viewmodel/   # ViewModels
+│       │   ├── ui/
+│       │   │   ├── screens/ # UI screens
+│       │   │   └── theme/   # Theme and styling
+│       │   └── App.kt       # Main app composable
+│       ├── androidMain/     # Android-specific implementations
+│       ├── iosMain/         # iOS-specific implementations
+│       ├── jvmMain/         # Desktop-specific implementations
+│       ├── jsMain/          # Web JS-specific implementations
+│       └── wasmJsMain/      # Web Wasm-specific implementations
+├── androidApp/              # Android application module
+│   └── src/main/
+│       ├── kotlin/          # Android MainActivity
+│       ├── res/             # Android resources
+│       └── AndroidManifest.xml
+└── iosApp/                  # iOS application module
+    └── iosApp/
+        ├── iOSApp.swift     # SwiftUI wrapper
+        └── ContentView.swift
 ```
 
 ### Key Components
@@ -154,14 +164,25 @@ composeApp/src/
 
 ## Building
 
-### Desktop
-```bash
-./gradlew :composeApp:run
-```
-
 ### Android
 ```bash
-./gradlew :composeApp:assembleDebug
+# Build debug APK
+./gradlew :androidApp:assembleDebug
+
+# Install on connected device/emulator
+./gradlew :androidApp:installDebug
+
+# Or open in Android Studio and run
+```
+Output: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`
+
+### Desktop (JVM)
+```bash
+# Run directly
+./gradlew :composeApp:run
+
+# Create distributable package
+./gradlew :composeApp:packageDistributionForCurrentOS
 ```
 
 ### iOS
@@ -169,7 +190,11 @@ Open `iosApp/iosApp.xcodeproj` in Xcode and run
 
 ### Web
 ```bash
+# WebAssembly (faster, modern browsers)
 ./gradlew :composeApp:wasmJsBrowserRun
+
+# JavaScript (slower, wider compatibility)
+./gradlew :composeApp:jsBrowserRun
 ```
 
 ## Compatibility with Obsidian
