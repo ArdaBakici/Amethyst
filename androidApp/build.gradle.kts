@@ -1,25 +1,8 @@
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-}
-
-kotlin {
-    androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
-    }
-
-    sourceSets {
-        androidMain.dependencies {
-            implementation(project(":composeApp"))
-            implementation(libs.androidx.activity.compose)
-        }
-    }
+    kotlin("android")
 }
 
 android {
@@ -50,8 +33,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    buildFeatures {
+        compose = true
+    }
 }
 
 dependencies {
+    implementation(project(":composeApp"))
+    implementation(libs.androidx.activity.compose)
     debugImplementation(compose.uiTooling)
 }
