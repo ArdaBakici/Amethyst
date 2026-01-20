@@ -2,7 +2,7 @@ package com.example.amethyst.data
 
 // Web/Wasm doesn't have direct file system access
 // Tasks will be stored in localStorage or IndexedDB
-actual class FileService {
+actual class FileService actual constructor() {
     actual suspend fun listTaskFiles(directoryPath: String): List<String> {
         // Not supported in browser environment
         return emptyList()

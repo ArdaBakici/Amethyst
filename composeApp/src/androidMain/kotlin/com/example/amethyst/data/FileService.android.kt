@@ -4,7 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-actual class FileService {
+actual class FileService actual constructor() {
     actual suspend fun listTaskFiles(directoryPath: String): List<String> = withContext(Dispatchers.IO) {
         try {
             val dir = File(directoryPath)

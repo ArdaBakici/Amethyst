@@ -3,7 +3,7 @@ package com.example.amethyst.data
 /**
  * Platform-specific file operations interface
  */
-expect class FileService {
+expect class FileService() {
     /**
      * Lists all .md files in the specified directory
      */

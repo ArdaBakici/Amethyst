@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 import platform.Foundation.*
 
 @OptIn(ExperimentalForeignApi::class)
-actual class FileService {
+actual class FileService actual constructor() {
     actual suspend fun listTaskFiles(directoryPath: String): List<String> = withContext(Dispatchers.IO) {
         try {
             val fileManager = NSFileManager.defaultManager
