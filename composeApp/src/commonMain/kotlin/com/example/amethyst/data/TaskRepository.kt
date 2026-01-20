@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import java.net.URLDecoder
 
 class TaskRepository(
     private val fileService: FileService,
@@ -19,15 +20,20 @@ class TaskRepository(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Map task IDs to their actual file URIs/paths
+    private val taskFileMap = mutableMapOf<String, String>()
+
     suspend fun loadTasks() {
         _isLoading.value = true
         try {
             val taskFiles = fileService.listTaskFiles(vaultPath)
             val loadedTasks = taskFiles.mapNotNull { filePath ->
-                val filename = filePath.substringAfterLast('/')
-                    .substringAfterLast('\\')
+                val filename = extractFilename(filePath)
                 fileService.readFile(filePath)?.let { content ->
-                    TaskSerializer.parseTask(filename, content)
+                    TaskSerializer.parseTask(filename, content)?.also { task ->
+                        // Store the mapping between task ID and actual file URI
+                        taskFileMap[task.id] = filePath
+                    }
                 }
             }
             _tasks.value = loadedTasks
@@ -49,10 +55,11 @@ class TaskRepository(
             modifiedAt = now
         )
 
-        val filePath = "$vaultPath/${newTask.id}.md"
+        val filePath = constructFilePath(newTask.id)
         val content = TaskSerializer.serializeTask(newTask)
 
         return if (fileService.writeFile(filePath, content)) {
+            taskFileMap[newTask.id] = filePath
             _tasks.value = _tasks.value + newTask
             true
         } else {
@@ -62,7 +69,9 @@ class TaskRepository(
 
     suspend fun updateTask(task: Task): Boolean {
         val updatedTask = task.copy(modifiedAt = Clock.System.now())
-        val filePath = "$vaultPath/${updatedTask.id}.md"
+
+        // Use the stored file path/URI for this task
+        val filePath = taskFileMap[updatedTask.id] ?: constructFilePath(updatedTask.id)
         val content = TaskSerializer.serializeTask(updatedTask)
 
         return if (fileService.writeFile(filePath, content)) {
@@ -74,8 +83,9 @@ class TaskRepository(
     }
 
     suspend fun deleteTask(id: String): Boolean {
-        val filePath = "$vaultPath/$id.md"
+        val filePath = taskFileMap[id] ?: constructFilePath(id)
         return if (fileService.deleteFile(filePath)) {
+            taskFileMap.remove(id)
             _tasks.value = _tasks.value.filter { it.id != id }
             true
         } else {
@@ -151,5 +161,34 @@ class TaskRepository(
 
     fun getAllProjects(): List<String> {
         return _tasks.value.flatMap { it.projects }.distinct().sorted()
+    }
+
+    /**
+     * Extracts filename from a file path or content URI
+     */
+    private fun extractFilename(path: String): String {
+        // For content URIs, the filename might be URL-encoded
+        val rawFilename = path.substringAfterLast('/')
+            .substringAfterLast('\\')
+
+        // Decode URL-encoded characters (like %3A for :)
+        return try {
+            URLDecoder.decode(rawFilename, "UTF-8")
+        } catch (e: Exception) {
+            rawFilename
+        }
+    }
+
+    /**
+     * Constructs the file path/URI for a task
+     */
+    private fun constructFilePath(taskId: String): String {
+        return if (vaultPath.startsWith("content://")) {
+            // For content URIs, we need to use the FileService to create the file
+            // This is a fallback - normally we should have the URI in taskFileMap
+            "$vaultPath/${taskId}.md"
+        } else {
+            "$vaultPath/${taskId}.md"
+        }
     }
 }

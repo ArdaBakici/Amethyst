@@ -121,14 +121,48 @@ actual class FileService actual constructor() {
     }
 
     private fun writeFileToContentUri(uriString: String, content: String): Boolean {
-        val uri = Uri.parse(uriString)
         return try {
-            applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                outputStream.bufferedWriter().use { it.write(content) }
+            // Check if this is a directory URI + filename pattern (for new files)
+            if (uriString.contains("/tree/") && uriString.substringAfterLast('/').endsWith(".md")) {
+                // Extract directory URI and filename
+                val parts = uriString.split("/tree/")
+                if (parts.size == 2) {
+                    val baseUri = parts[0] + "/tree/" + parts[1].substringBefore('/')
+                    val filename = parts[1].substringAfterLast('/')
+
+                    val dirUri = Uri.parse(baseUri)
+                    val dirDocFile = DocumentFile.fromTreeUri(applicationContext, dirUri)
+
+                    if (dirDocFile != null) {
+                        // Check if file already exists
+                        val existingFile = dirDocFile.findFile(filename)
+                        val fileUri = if (existingFile != null) {
+                            existingFile.uri
+                        } else {
+                            // Create new file
+                            dirDocFile.createFile("text/markdown", filename)?.uri
+                        }
+
+                        fileUri?.let { uri ->
+                            applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                                outputStream.bufferedWriter().use { it.write(content) }
+                            }
+                            return true
+                        }
+                    }
+                }
+                false
+            } else {
+                // Existing file URI
+                val uri = Uri.parse(uriString)
+                applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                    outputStream.bufferedWriter().use { it.write(content) }
+                }
+                true
             }
-            true
         } catch (e: Exception) {
             println("Error writing to content URI: ${e.message}")
+            e.printStackTrace()
             false
         }
     }
