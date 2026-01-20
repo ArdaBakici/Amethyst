@@ -49,15 +49,7 @@ fun App() {
                 SettingsScreen(
                     vaultPath = vaultPath,
                     onVaultPathChange = { preferences.setVaultPath(it) },
-                    onNavigateBack = { /* No back navigation from initial setup */ },
-                    onPickFolder = {
-                        coroutineScope.launch {
-                            val folderPicker = FolderPicker()
-                            folderPicker.pickFolder()?.let { path ->
-                                preferences.setVaultPath(path)
-                            }
-                        }
-                    }
+                    onNavigateBack = { /* No back navigation from initial setup */ }
                 )
             }
             viewModel != null -> {
@@ -94,14 +86,6 @@ fun App() {
                             onVaultPathChange = { preferences.setVaultPath(it) },
                             onNavigateBack = {
                                 currentScreen = Screen.TaskList
-                            },
-                            onPickFolder = {
-                                coroutineScope.launch {
-                                    val folderPicker = FolderPicker()
-                                    folderPicker.pickFolder()?.let { path ->
-                                        preferences.setVaultPath(path)
-                                    }
-                                }
                             }
                         )
                     }

@@ -3,19 +3,18 @@ package com.example.amethyst.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.amethyst.ui.FolderPickerButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     vaultPath: String,
     onVaultPathChange: (String) -> Unit,
-    onNavigateBack: () -> Unit,
-    onPickFolder: () -> Unit
+    onNavigateBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -53,9 +52,7 @@ fun SettingsScreen(
                 label = { Text("Vault Path") },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    IconButton(onClick = onPickFolder) {
-                        Icon(Icons.Default.Folder, "Browse")
-                    }
+                    FolderPickerButton(onFolderSelected = onVaultPathChange)
                 },
                 supportingText = {
                     Text("Path to your Obsidian vault task folder")
