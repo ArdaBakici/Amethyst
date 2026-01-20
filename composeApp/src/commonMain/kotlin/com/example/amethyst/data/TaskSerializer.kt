@@ -239,7 +239,11 @@ object TaskSerializer {
         return when (value) {
             is List<*> -> value.mapNotNull {
                 (it as? Map<*, *>)?.let { map ->
-                    TimeEntry.fromMap(map.mapKeys { e -> e.key.toString() })
+                    val stringMap = map
+                        .mapKeys { e -> e.key.toString() }
+                        .filterValues { v -> v != null }
+                        .mapValues { e -> e.value!! }
+                    TimeEntry.fromMap(stringMap)
                 }
             }
             else -> emptyList()
