@@ -79,6 +79,9 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private fun loadTasks() {
         runBlocking {
             try {
+                // Initialize FileService context if not already set
+                FileService.applicationContext = context
+
                 val vaultPath = Preferences.instance.vaultPath.value
                 if (vaultPath.isNotBlank()) {
                     val fileService = FileService()
