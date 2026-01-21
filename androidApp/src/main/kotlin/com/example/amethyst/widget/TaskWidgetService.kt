@@ -45,80 +45,25 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     }
 
     override fun getViewAt(position: Int): RemoteViews {
-        println("TaskWidgetService.getViewAt: Creating view for position $position")
+        println("TaskWidgetService.getViewAt: Creating view for position $position, tasks.size=${tasks.size}")
 
-        return try {
-            val views = RemoteViews(context.packageName, R.layout.widget_task_item)
-            println("TaskWidgetService.getViewAt: Created RemoteViews, package=${context.packageName}")
+        val views = RemoteViews(context.packageName, R.layout.widget_task_item)
 
-            if (position < tasks.size) {
-                val task = tasks[position]
-                println("TaskWidgetService.getViewAt: Setting data for task: ${task.title}")
+        if (position >= 0 && position < tasks.size) {
+            val task = tasks[position]
 
-                try {
-                    // Set task title - ensure it's not null or empty
-                    val title = task.title.ifBlank { "Untitled Task" }
-                    views.setTextViewText(R.id.task_title, title)
-                    println("TaskWidgetService.getViewAt: Set title to '$title'")
-                } catch (e: Exception) {
-                    println("TaskWidgetService.getViewAt: Failed to set title: ${e.message}")
-                    e.printStackTrace()
-                }
+            // Set task title
+            views.setTextViewText(R.id.task_title, task.title)
 
-                try {
-                    // Set checkbox state
-                    views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
-                    println("TaskWidgetService.getViewAt: Set checkbox state to ${task.status == TaskStatus.DONE}")
-                } catch (e: Exception) {
-                    println("TaskWidgetService.getViewAt: Failed to set checkbox: ${e.message}")
-                    e.printStackTrace()
-                }
+            // Set task details - simplified
+            views.setTextViewText(R.id.task_details, task.status.value)
 
-                try {
-                    // Set task details
-                    val details = buildString {
-                        task.priority?.let { append("${it.displayName} • ") }
-                        task.due?.let { append("Due: $it • ") }
-                        if (task.contexts.isNotEmpty()) {
-                            append(task.contexts.joinToString(", ") { "@$it" })
-                        }
-                    }.trimEnd('•', ' ')
+            // Don't set checkbox for now to simplify debugging
 
-                    val detailsText = details.ifBlank { "No details" }
-                    views.setTextViewText(R.id.task_details, detailsText)
-                    println("TaskWidgetService.getViewAt: Set details to '$detailsText'")
-                } catch (e: Exception) {
-                    println("TaskWidgetService.getViewAt: Failed to set details: ${e.message}")
-                    e.printStackTrace()
-                }
-
-                try {
-                    // Set click intent
-                    val fillInIntent = Intent()
-                    views.setOnClickFillInIntent(R.id.task_checkbox, fillInIntent)
-                    println("TaskWidgetService.getViewAt: Set click intent")
-                } catch (e: Exception) {
-                    println("TaskWidgetService.getViewAt: Failed to set click intent: ${e.message}")
-                    e.printStackTrace()
-                }
-            } else {
-                println("TaskWidgetService.getViewAt: Position $position out of bounds (size: ${tasks.size})")
-            }
-
-            println("TaskWidgetService.getViewAt: Successfully created view for position $position")
-            views
-        } catch (e: Exception) {
-            println("TaskWidgetService.getViewAt: Exception creating view: ${e.message}")
-            e.printStackTrace()
-            // Return a simple view with default values
-            val fallbackViews = RemoteViews(context.packageName, R.layout.widget_task_item)
-            try {
-                fallbackViews.setTextViewText(R.id.task_title, "Error loading task")
-                fallbackViews.setTextViewText(R.id.task_details, "")
-            } catch (ignored: Exception) {
-            }
-            fallbackViews
+            println("TaskWidgetService.getViewAt: Set task '${task.title}' at position $position")
         }
+
+        return views
     }
 
     override fun getLoadingView(): RemoteViews? {
