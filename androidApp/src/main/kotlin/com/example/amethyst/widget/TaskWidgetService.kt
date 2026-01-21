@@ -7,6 +7,7 @@ import android.widget.RemoteViewsService
 import com.example.amethyst.R
 import com.example.amethyst.data.FileService
 import com.example.amethyst.data.Preferences
+import com.example.amethyst.data.PreferencesStore
 import com.example.amethyst.data.TaskSerializer
 import com.example.amethyst.model.Task
 import com.example.amethyst.model.TaskStatus
@@ -81,6 +82,11 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             try {
                 // Initialize FileService context if not already set
                 FileService.applicationContext = context
+
+                // Initialize Preferences if not already set
+                if (!Preferences.Companion::instance.isInitialized) {
+                    Preferences.initialize(PreferencesStore(context))
+                }
 
                 val fullTasksPath = Preferences.instance.getFullTasksPath()
                 if (fullTasksPath.isNotBlank()) {
