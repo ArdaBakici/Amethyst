@@ -110,10 +110,18 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
         val rawFilename = path.substringAfterLast('/')
             .substringAfterLast('\\')
 
-        return try {
+        val decoded = try {
             URLDecoder.decode(rawFilename, "UTF-8")
         } catch (e: Exception) {
             rawFilename
+        }
+
+        // For Android content URI document IDs like "primary:Sync/Vault/task.md"
+        // extract just the filename from the full document path
+        return if (decoded.contains('/') || decoded.contains('\\')) {
+            decoded.substringAfterLast('/').substringAfterLast('\\')
+        } else {
+            decoded
         }
     }
 }
