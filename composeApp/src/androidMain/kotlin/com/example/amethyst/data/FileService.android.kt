@@ -239,11 +239,14 @@ actual class FileService actual constructor() {
             if (part.isEmpty()) continue
             println("FileService.findSubdirectory: Looking for part: '$part'")
 
-            val foundDir = currentDir.findFile(part)
+            // Ensure currentDir is non-null (should always be the case here)
+            val current = currentDir ?: return null
+
+            val foundDir = current.findFile(part)
             if (foundDir == null) {
                 println("FileService.findSubdirectory: Part '$part' not found")
                 // List what files actually exist
-                currentDir.listFiles().forEach { file ->
+                current.listFiles().forEach { file ->
                     println("  Available: ${file.name} (isDir: ${file.isDirectory})")
                 }
                 return null
