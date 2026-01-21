@@ -116,6 +116,8 @@ class TaskWidgetProvider : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(appWidgetId, views)
             println("TaskWidgetProvider.updateAppWidget: Called updateAppWidget")
 
+            // Notify the widget that data has changed
+            @Suppress("DEPRECATION")
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
             println("TaskWidgetProvider.updateAppWidget: Called notifyAppWidgetViewDataChanged")
         }
