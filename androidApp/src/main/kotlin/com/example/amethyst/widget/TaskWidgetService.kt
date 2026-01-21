@@ -25,12 +25,12 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private var tasks = listOf<Task>()
 
     override fun onCreate() {
-        println("TaskWidgetService.onCreate: Creating widget factory")
-        loadTasks()
+        println("TaskWidgetService.onCreate: Creating widget factory - doing minimal work")
+        // Don't load tasks here - let onDataSetChanged do it
     }
 
     override fun onDataSetChanged() {
-        println("TaskWidgetService.onDataSetChanged: Refreshing data")
+        println("TaskWidgetService.onDataSetChanged: Loading/refreshing data")
         loadTasks()
     }
 
