@@ -50,5 +50,6 @@ kotlin {
 dependencies {
     implementation(project(":composeApp"))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.kotlinx.datetime)
     debugImplementation(compose.uiTooling)
 }
