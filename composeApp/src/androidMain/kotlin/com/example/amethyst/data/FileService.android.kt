@@ -48,19 +48,37 @@ actual class FileService actual constructor() {
     actual suspend fun readFile(filePath: String): String? = withContext(Dispatchers.IO) {
         try {
             if (filePath.startsWith("content://")) {
-                // Check if this is a subdirectory file path (contains /. pattern)
-                if (filePath.contains("/.")) {
-                    val vaultRoot = filePath.substringBefore("/.")
-                    val relativePath = filePath.substringAfter(vaultRoot + "/")
-                    readFileFromSubdirectory(vaultRoot, relativePath)
-                } else {
-                    readFileFromContentUri(filePath)
+                // Parse content URI to extract base and subdirectory path
+                val pathParts = filePath.split("/")
+                val treeIndex = pathParts.indexOf("tree")
+
+                if (treeIndex == -1 || treeIndex + 1 >= pathParts.size) {
+                    return@withContext null
                 }
+
+                // Get everything after tree/documentId as the file path
+                val filePathParts = pathParts.drop(treeIndex + 2)
+
+                if (filePathParts.isEmpty()) {
+                    // Direct file URI, not a subdirectory path
+                    return@withContext readFileFromContentUri(filePath)
+                }
+
+                // Reconstruct base URI
+                val baseUriString = pathParts.take(treeIndex + 2).joinToString("/")
+                val relativePath = filePathParts.joinToString("/")
+
+                println("FileService.readFile: filePath = $filePath")
+                println("FileService.readFile: baseUri = $baseUriString")
+                println("FileService.readFile: relativePath = $relativePath")
+
+                readFileFromSubdirectory(baseUriString, relativePath)
             } else {
                 File(filePath).takeIf { it.exists() }?.readText()
             }
         } catch (e: Exception) {
             println("Error reading file: ${e.message}")
+            e.printStackTrace()
             null
         }
     }
@@ -93,19 +111,59 @@ actual class FileService actual constructor() {
     }
 
     actual suspend fun directoryExists(directoryPath: String): Boolean = withContext(Dispatchers.IO) {
-        if (directoryPath.startsWith("content://")) {
-            // For content URIs, check if the directory exists
-            // If it's the root URI, check directly
-            if (!directoryPath.contains("/.")) {
-                val uri = Uri.parse(directoryPath)
-                val docFile = DocumentFile.fromTreeUri(applicationContext, uri)
-                docFile?.exists() ?: false
+        try {
+            if (directoryPath.startsWith("content://")) {
+                // For content URIs, we need to navigate using DocumentFile
+                // Check if this is a root URI or has a subdirectory path
+                val pathParts = directoryPath.split("/")
+                val treeIndex = pathParts.indexOf("tree")
+
+                if (treeIndex == -1 || treeIndex + 1 >= pathParts.size) {
+                    return@withContext false
+                }
+
+                // Get the document ID part (e.g., "primary%3ASync%2FWayfinder")
+                val encodedDocId = pathParts[treeIndex + 1]
+                val decodedDocId = java.net.URLDecoder.decode(encodedDocId, "UTF-8")
+
+                // Check if there's a subdirectory path after the tree portion
+                val subdirPath = pathParts.drop(treeIndex + 2).joinToString("/")
+
+                // Reconstruct base URI
+                val baseUriString = pathParts.take(treeIndex + 2).joinToString("/")
+                val baseUri = Uri.parse(baseUriString)
+
+                println("FileService.directoryExists: directoryPath = $directoryPath")
+                println("FileService.directoryExists: decodedDocId = $decodedDocId")
+                println("FileService.directoryExists: subdirPath = $subdirPath")
+                println("FileService.directoryExists: baseUri = $baseUri")
+
+                var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return@withContext false
+
+                // Navigate through subdirectory if specified
+                if (subdirPath.isNotEmpty()) {
+                    for (part in subdirPath.split("/")) {
+                        if (part.isEmpty()) continue
+                        println("FileService.directoryExists: Looking for: $part")
+                        currentDir = currentDir.findFile(part) ?: run {
+                            println("FileService.directoryExists: Not found: $part")
+                            currentDir.listFiles().forEach { file ->
+                                println("  Available: ${file.name} (isDir: ${file.isDirectory})")
+                            }
+                            return@withContext false
+                        }
+                        if (!currentDir.isDirectory) return@withContext false
+                    }
+                }
+
+                currentDir.exists()
             } else {
-                // For subdirectories like .obsidian, we need to navigate
-                findSubdirectory(directoryPath) != null
+                File(directoryPath).exists() && File(directoryPath).isDirectory
             }
-        } else {
-            File(directoryPath).exists() && File(directoryPath).isDirectory
+        } catch (e: Exception) {
+            println("FileService.directoryExists: Error - ${e.message}")
+            e.printStackTrace()
+            false
         }
     }
 
@@ -120,6 +178,20 @@ actual class FileService actual constructor() {
         } catch (e: Exception) {
             println("Error creating directory: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Helper function to construct proper subdirectory path for content URIs
+     * For content URIs, we append to the path, not concatenate with /
+     */
+    fun getSubdirectoryPath(basePath: String, subdirectory: String): String {
+        return if (basePath.startsWith("content://")) {
+            // For content URIs, append the subdirectory to the path
+            "$basePath/$subdirectory"
+        } else {
+            // For file paths, use standard concatenation
+            "$basePath/$subdirectory"
         }
     }
 
