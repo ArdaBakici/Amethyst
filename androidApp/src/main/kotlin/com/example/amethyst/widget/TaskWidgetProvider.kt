@@ -51,11 +51,14 @@ class TaskWidgetProvider : AppWidgetProvider() {
             println("TaskWidgetProvider.updateAppWidget: Set title click listener")
 
             // Set up the intent for the task list
+            // IMPORTANT: Intent must be unique per widget instance
             val listIntent = Intent(context, TaskWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                // Set unique data to ensure Android creates separate service instances for each widget
+                data = android.net.Uri.parse("content://widget/$appWidgetId")
             }
             views.setRemoteAdapter(R.id.widget_task_list, listIntent)
-            println("TaskWidgetProvider.updateAppWidget: Set remote adapter")
+            println("TaskWidgetProvider.updateAppWidget: Set remote adapter with unique intent for widget $appWidgetId")
 
             // Set empty view
             views.setEmptyView(R.id.widget_task_list, R.id.widget_empty_view)
