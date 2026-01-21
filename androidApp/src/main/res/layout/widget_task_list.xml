@@ -40,10 +40,11 @@
         android:id="@+id/widget_empty_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="No tasks"
+        android:text="No active tasks"
         android:gravity="center"
         android:textSize="16sp"
         android:textColor="#888888"
-        android:padding="16dp" />
+        android:padding="16dp"
+        android:visibility="gone" />
 
 </FrameLayout>

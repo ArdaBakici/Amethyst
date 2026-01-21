@@ -35,7 +35,9 @@ class TaskWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
+            println("TaskWidgetProvider.updateAppWidget: Updating widget $appWidgetId")
             val views = RemoteViews(context.packageName, R.layout.widget_task_list)
+            println("TaskWidgetProvider.updateAppWidget: Created RemoteViews for ${context.packageName}")
 
             // Set up the intent to launch MainActivity when widget is clicked
             val intent = Intent(context, MainActivity::class.java)
@@ -46,15 +48,18 @@ class TaskWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_title, pendingIntent)
+            println("TaskWidgetProvider.updateAppWidget: Set title click listener")
 
             // Set up the intent for the task list
             val listIntent = Intent(context, TaskWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
             views.setRemoteAdapter(R.id.widget_task_list, listIntent)
+            println("TaskWidgetProvider.updateAppWidget: Set remote adapter")
 
             // Set empty view
             views.setEmptyView(R.id.widget_task_list, R.id.widget_empty_view)
+            println("TaskWidgetProvider.updateAppWidget: Set empty view")
 
             // Set up click listener for list items
             val clickIntent = Intent(context, MainActivity::class.java)
@@ -65,10 +70,14 @@ class TaskWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setPendingIntentTemplate(R.id.widget_task_list, clickPendingIntent)
+            println("TaskWidgetProvider.updateAppWidget: Set pending intent template")
 
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
+            println("TaskWidgetProvider.updateAppWidget: Called updateAppWidget")
+
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
+            println("TaskWidgetProvider.updateAppWidget: Called notifyAppWidgetViewDataChanged")
         }
 
         fun updateAllWidgets(context: Context) {
