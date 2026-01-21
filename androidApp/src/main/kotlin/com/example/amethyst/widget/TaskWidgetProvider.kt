@@ -70,31 +70,44 @@ class TaskWidgetProvider : AppWidgetProvider() {
             views: RemoteViews,
             isDark: Boolean
         ) {
-            // Initialize services
-            FileService.applicationContext = context
-            if (!Preferences.isInitialized) {
-                Preferences.initialize(PreferencesStore(context))
+            try {
+                // Initialize services
+                FileService.applicationContext = context
+                if (!Preferences.isInitialized) {
+                    Preferences.initialize(PreferencesStore(context))
+                }
+
+                // Load tasks
+                val tasks = loadTasksForWidget(context)
+                println("TaskWidgetProvider.setupRemoteCollectionItems: Loaded ${tasks.size} tasks")
+
+                // Build RemoteViews for each task
+                val itemBuilder = RemoteViews.RemoteCollectionItems.Builder()
+
+                tasks.forEachIndexed { index, task ->
+                    try {
+                        val itemView = createTaskItemView(context, task, isDark)
+                        itemBuilder.addItem(index.toLong(), itemView)
+                        println("TaskWidgetProvider.setupRemoteCollectionItems: Added item $index: ${task.title}")
+                    } catch (e: Exception) {
+                        println("TaskWidgetProvider.setupRemoteCollectionItems: Error creating item $index: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+
+                val collectionItems = itemBuilder
+                    .setHasStableIds(true)
+                    .setViewTypeCount(1)
+                    .build()
+
+                println("TaskWidgetProvider.setupRemoteCollectionItems: Built collection with ${tasks.size} items")
+                views.setRemoteAdapter(R.id.widget_task_list, collectionItems)
+                println("TaskWidgetProvider.setupRemoteCollectionItems: Set collection to widget")
+            } catch (e: Exception) {
+                println("TaskWidgetProvider.setupRemoteCollectionItems: Fatal error: ${e.message}")
+                e.printStackTrace()
+                throw e
             }
-
-            // Load tasks
-            val tasks = loadTasksForWidget(context)
-            println("TaskWidgetProvider.setupRemoteCollectionItems: Loaded ${tasks.size} tasks")
-
-            // Build RemoteViews for each task
-            val itemBuilder = RemoteViews.RemoteCollectionItems.Builder()
-
-            tasks.forEachIndexed { index, task ->
-                val itemView = createTaskItemView(context, task, isDark)
-                itemBuilder.addItem(index.toLong(), itemView)
-            }
-
-            val collectionItems = itemBuilder
-                .setHasStableIds(true)
-                .setViewTypeCount(1)
-                .build()
-
-            views.setRemoteAdapter(R.id.widget_task_list, collectionItems)
-            println("TaskWidgetProvider.setupRemoteCollectionItems: Set ${tasks.size} items to widget")
         }
 
         /**
