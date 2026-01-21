@@ -58,14 +58,12 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                navigationIcon = if (canNavigateBack) {
-                    {
+                navigationIcon = {
+                    if (canNavigateBack) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.Default.ArrowBack, "Back")
                         }
                     }
-                } else {
-                    null
                 }
             )
         }
