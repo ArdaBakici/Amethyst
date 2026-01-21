@@ -225,37 +225,89 @@ actual class FileService actual constructor() {
 
     private fun writeFileToContentUri(uriString: String, content: String): Boolean {
         return try {
+            println("FileService.writeFileToContentUri: uriString = $uriString")
+
             // Check if this is a directory URI + filename pattern (for new files)
             if (uriString.contains("/tree/") && uriString.substringAfterLast('/').endsWith(".md")) {
-                // Extract directory URI and filename
-                val parts = uriString.split("/tree/")
-                if (parts.size == 2) {
-                    val baseUri = parts[0] + "/tree/" + parts[1].substringBefore('/')
-                    val filename = parts[1].substringAfterLast('/')
+                // Parse the URI to extract components
+                val pathParts = uriString.split("/")
+                val treeIndex = pathParts.indexOf("tree")
 
-                    val dirUri = Uri.parse(baseUri)
-                    val dirDocFile = DocumentFile.fromTreeUri(applicationContext, dirUri)
+                if (treeIndex == -1 || treeIndex + 1 >= pathParts.size) {
+                    println("FileService.writeFileToContentUri: Invalid tree URI structure")
+                    return false
+                }
 
-                    if (dirDocFile != null) {
-                        // Check if file already exists
-                        val existingFile = dirDocFile.findFile(filename)
-                        val fileUri = if (existingFile != null) {
-                            existingFile.uri
-                        } else {
-                            // Create new file
-                            dirDocFile.createFile("text/markdown", filename)?.uri
+                // Reconstruct base URI (vault root)
+                val baseUriString = pathParts.take(treeIndex + 2).joinToString("/")
+                val baseUri = Uri.parse(baseUriString)
+
+                // Get all path parts after the document ID
+                val pathAfterDocId = pathParts.drop(treeIndex + 2)
+                if (pathAfterDocId.isEmpty()) {
+                    println("FileService.writeFileToContentUri: No filename provided")
+                    return false
+                }
+
+                // Last part is the filename, everything before is subdirectory path
+                val filename = pathAfterDocId.last()
+                val subdirParts = pathAfterDocId.dropLast(1)
+
+                println("FileService.writeFileToContentUri: baseUri = $baseUri")
+                println("FileService.writeFileToContentUri: subdirParts = $subdirParts")
+                println("FileService.writeFileToContentUri: filename = $filename")
+
+                // Start from vault root
+                var targetDir = DocumentFile.fromTreeUri(applicationContext, baseUri)
+                if (targetDir == null) {
+                    println("FileService.writeFileToContentUri: Failed to get DocumentFile from baseUri")
+                    return false
+                }
+
+                // Navigate to subdirectory if needed
+                for (subdirName in subdirParts) {
+                    if (subdirName.isEmpty()) continue
+                    println("FileService.writeFileToContentUri: Navigating to: $subdirName")
+
+                    targetDir = targetDir.findFile(subdirName) ?: run {
+                        println("FileService.writeFileToContentUri: Subdirectory not found: $subdirName")
+                        println("Available files:")
+                        targetDir.listFiles().forEach { file ->
+                            println("  - ${file.name} (isDir: ${file.isDirectory})")
                         }
+                        return false
+                    }
 
-                        fileUri?.let { uri ->
-                            applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                                outputStream.bufferedWriter().use { it.write(content) }
-                            }
-                            return true
-                        }
+                    if (!targetDir.isDirectory) {
+                        println("FileService.writeFileToContentUri: Path component is not a directory: $subdirName")
+                        return false
                     }
                 }
-                false
+
+                println("FileService.writeFileToContentUri: Target directory: ${targetDir.name}")
+
+                // Check if file already exists in target directory
+                val existingFile = targetDir.findFile(filename)
+                val fileUri = if (existingFile != null) {
+                    println("FileService.writeFileToContentUri: File exists, updating: $filename")
+                    existingFile.uri
+                } else {
+                    println("FileService.writeFileToContentUri: Creating new file: $filename")
+                    targetDir.createFile("text/markdown", filename)?.uri
+                }
+
+                fileUri?.let { uri ->
+                    applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                        outputStream.bufferedWriter().use { it.write(content) }
+                    }
+                    println("FileService.writeFileToContentUri: Successfully wrote file")
+                    return true
+                } ?: run {
+                    println("FileService.writeFileToContentUri: Failed to create/get file URI")
+                    return false
+                }
             } else {
+                println("FileService.writeFileToContentUri: Direct file URI, updating existing file")
                 // Existing file URI
                 val uri = Uri.parse(uriString)
                 applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
