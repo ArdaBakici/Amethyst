@@ -81,7 +81,7 @@ class TaskRepository(
         println("TaskRepository.createTask: Serialized content length: ${content.length} bytes")
 
         val success = fileService.writeFile(filePath, content)
-        if (success) {
+        return if (success) {
             println("TaskRepository.createTask: Successfully wrote task to: $filePath")
             taskFileMap[newTask.id] = filePath
             _tasks.value = _tasks.value + newTask
@@ -112,7 +112,7 @@ class TaskRepository(
         println("TaskRepository.updateTask: Serialized content length: ${content.length} bytes")
 
         val success = fileService.writeFile(filePath, content)
-        if (success) {
+        return if (success) {
             println("TaskRepository.updateTask: Successfully updated task at: $filePath")
             _tasks.value = _tasks.value.map { if (it.id == updatedTask.id) updatedTask else it }
             println("TaskRepository.updateTask: Task updated in repository")
