@@ -70,12 +70,21 @@ actual class FileService actual constructor() {
 
     actual suspend fun readFile(filePath: String): String? = withContext(Dispatchers.IO) {
         try {
+            println("FileService.readFile: filePath = $filePath")
+
             if (filePath.startsWith("content://")) {
-                // Parse content URI to extract base and subdirectory path
+                // Check if this is a proper document URI (contains /document/)
+                if (filePath.contains("/document/")) {
+                    println("FileService.readFile: Reading from document URI directly")
+                    return@withContext readFileFromContentUri(filePath)
+                }
+
+                // Otherwise, it's a pseudo-URI (directory path + filename)
                 val pathParts = filePath.split("/")
                 val treeIndex = pathParts.indexOf("tree")
 
                 if (treeIndex == -1 || treeIndex + 1 >= pathParts.size) {
+                    println("FileService.readFile: Invalid tree URI structure")
                     return@withContext null
                 }
 
@@ -83,24 +92,24 @@ actual class FileService actual constructor() {
                 val filePathParts = pathParts.drop(treeIndex + 2)
 
                 if (filePathParts.isEmpty()) {
-                    // Direct file URI, not a subdirectory path
-                    return@withContext readFileFromContentUri(filePath)
+                    println("FileService.readFile: No file path after document ID")
+                    return@withContext null
                 }
 
                 // Reconstruct base URI
                 val baseUriString = pathParts.take(treeIndex + 2).joinToString("/")
                 val relativePath = filePathParts.joinToString("/")
 
-                println("FileService.readFile: filePath = $filePath")
                 println("FileService.readFile: baseUri = $baseUriString")
                 println("FileService.readFile: relativePath = $relativePath")
 
                 readFileFromSubdirectory(baseUriString, relativePath)
             } else {
+                println("FileService.readFile: Reading from file path")
                 File(filePath).takeIf { it.exists() }?.readText()
             }
         } catch (e: Exception) {
-            println("Error reading file: ${e.message}")
+            println("FileService.readFile: Error reading file: ${e.message}")
             e.printStackTrace()
             null
         }
@@ -240,9 +249,22 @@ actual class FileService actual constructor() {
     }
 
     private fun readFileFromContentUri(uriString: String): String? {
-        val uri = Uri.parse(uriString)
-        return applicationContext.contentResolver.openInputStream(uri)?.use { inputStream ->
-            inputStream.bufferedReader().use { it.readText() }
+        return try {
+            println("FileService.readFileFromContentUri: uriString = $uriString")
+            val uri = Uri.parse(uriString)
+            val content = applicationContext.contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.bufferedReader().use { it.readText() }
+            }
+            if (content != null) {
+                println("FileService.readFileFromContentUri: Successfully read ${content.length} bytes")
+            } else {
+                println("FileService.readFileFromContentUri: Failed to read content (null)")
+            }
+            content
+        } catch (e: Exception) {
+            println("FileService.readFileFromContentUri: Error: ${e.message}")
+            e.printStackTrace()
+            null
         }
     }
 
@@ -250,7 +272,18 @@ actual class FileService actual constructor() {
         return try {
             println("FileService.writeFileToContentUri: uriString = $uriString")
 
-            // Check if this is a directory URI + filename pattern (for new files)
+            // Check if this is a proper document URI (contains /document/)
+            if (uriString.contains("/document/")) {
+                println("FileService.writeFileToContentUri: Direct document URI, updating existing file")
+                val uri = Uri.parse(uriString)
+                applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                    outputStream.bufferedWriter().use { it.write(content) }
+                }
+                println("FileService.writeFileToContentUri: Successfully wrote to document URI")
+                return true
+            }
+
+            // Check if this is a directory URI + filename pattern (pseudo-URI for new files)
             if (uriString.contains("/tree/") && uriString.substringAfterLast('/').endsWith(".md")) {
                 // Parse the URI to extract components
                 val pathParts = uriString.split("/")
@@ -341,15 +374,11 @@ actual class FileService actual constructor() {
                     println("FileService.writeFileToContentUri: Failed to create/get file URI")
                     return false
                 }
-            } else {
-                println("FileService.writeFileToContentUri: Direct file URI, updating existing file")
-                // Existing file URI
-                val uri = Uri.parse(uriString)
-                applicationContext.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
-                    outputStream.bufferedWriter().use { it.write(content) }
-                }
-                true
             }
+
+            // Fallback: unknown URI format
+            println("FileService.writeFileToContentUri: Unknown URI format")
+            false
         } catch (e: Exception) {
             println("Error writing to content URI: ${e.message}")
             e.printStackTrace()
