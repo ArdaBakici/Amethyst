@@ -25,57 +25,92 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private var tasks = listOf<Task>()
 
     override fun onCreate() {
+        println("TaskWidgetService.onCreate: Creating widget factory")
         loadTasks()
     }
 
     override fun onDataSetChanged() {
+        println("TaskWidgetService.onDataSetChanged: Refreshing data")
         loadTasks()
     }
 
     override fun onDestroy() {
+        println("TaskWidgetService.onDestroy: Destroying widget factory")
         tasks = emptyList()
     }
 
-    override fun getCount(): Int = tasks.size
-
-    override fun getViewAt(position: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_task_item)
-
-        if (position < tasks.size) {
-            val task = tasks[position]
-
-            // Set task title
-            views.setTextViewText(R.id.task_title, task.title)
-
-            // Set checkbox state
-            views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
-
-            // Set task details
-            val details = buildString {
-                task.priority?.let { append("${it.displayName} • ") }
-                task.due?.let { append("Due: $it • ") }
-                if (task.contexts.isNotEmpty()) {
-                    append(task.contexts.joinToString(", ") { "@$it" })
-                }
-            }.trimEnd('•', ' ')
-
-            views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
-
-            // Set click intent
-            val fillInIntent = Intent()
-            views.setOnClickFillInIntent(R.id.task_checkbox, fillInIntent)
-        }
-
-        return views
+    override fun getCount(): Int {
+        println("TaskWidgetService.getCount: Returning ${tasks.size} tasks")
+        return tasks.size
     }
 
-    override fun getLoadingView(): RemoteViews? = null
+    override fun getViewAt(position: Int): RemoteViews {
+        println("TaskWidgetService.getViewAt: Creating view for position $position")
 
-    override fun getViewTypeCount(): Int = 1
+        return try {
+            val views = RemoteViews(context.packageName, R.layout.widget_task_item)
+            println("TaskWidgetService.getViewAt: Created RemoteViews")
 
-    override fun getItemId(position: Int): Long = position.toLong()
+            if (position < tasks.size) {
+                val task = tasks[position]
+                println("TaskWidgetService.getViewAt: Setting data for task: ${task.title}")
 
-    override fun hasStableIds(): Boolean = true
+                // Set task title
+                views.setTextViewText(R.id.task_title, task.title)
+                println("TaskWidgetService.getViewAt: Set title")
+
+                // Set checkbox state
+                views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
+                println("TaskWidgetService.getViewAt: Set checkbox state")
+
+                // Set task details
+                val details = buildString {
+                    task.priority?.let { append("${it.displayName} • ") }
+                    task.due?.let { append("Due: $it • ") }
+                    if (task.contexts.isNotEmpty()) {
+                        append(task.contexts.joinToString(", ") { "@$it" })
+                    }
+                }.trimEnd('•', ' ')
+
+                views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
+                println("TaskWidgetService.getViewAt: Set details: $details")
+
+                // Set click intent
+                val fillInIntent = Intent()
+                views.setOnClickFillInIntent(R.id.task_checkbox, fillInIntent)
+                println("TaskWidgetService.getViewAt: Set click intent")
+            } else {
+                println("TaskWidgetService.getViewAt: Position $position out of bounds (size: ${tasks.size})")
+            }
+
+            println("TaskWidgetService.getViewAt: Successfully created view for position $position")
+            views
+        } catch (e: Exception) {
+            println("TaskWidgetService.getViewAt: Exception creating view: ${e.message}")
+            e.printStackTrace()
+            RemoteViews(context.packageName, R.layout.widget_task_item)
+        }
+    }
+
+    override fun getLoadingView(): RemoteViews? {
+        println("TaskWidgetService.getLoadingView: Returning null (using default)")
+        return null
+    }
+
+    override fun getViewTypeCount(): Int {
+        println("TaskWidgetService.getViewTypeCount: Returning 1")
+        return 1
+    }
+
+    override fun getItemId(position: Int): Long {
+        println("TaskWidgetService.getItemId: Returning $position")
+        return position.toLong()
+    }
+
+    override fun hasStableIds(): Boolean {
+        println("TaskWidgetService.hasStableIds: Returning true")
+        return true
+    }
 
     private fun loadTasks() {
         println("TaskWidgetService.loadTasks: Starting to load tasks")
