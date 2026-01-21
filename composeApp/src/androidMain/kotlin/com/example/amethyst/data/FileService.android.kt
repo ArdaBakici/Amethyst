@@ -209,22 +209,56 @@ actual class FileService actual constructor() {
      * For paths like "content://.../.obsidian/plugins/tasknotes"
      */
     private fun findSubdirectory(fullPath: String): DocumentFile? {
+        println("FileService.findSubdirectory: fullPath = $fullPath")
+
         // Extract base URI and subdirectory path
         val baseUri = fullPath.substringBefore("/.").let { Uri.parse(it) }
         val subdirPath = fullPath.substringAfter("/.")
-        if (!subdirPath.startsWith(".")) return null
+
+        println("FileService.findSubdirectory: baseUri = $baseUri")
+        println("FileService.findSubdirectory: subdirPath = $subdirPath")
+
+        if (!subdirPath.startsWith(".")) {
+            println("FileService.findSubdirectory: subdirPath doesn't start with '.'")
+            return null
+        }
 
         // subdirPath already starts with ".", so just split it
         val pathParts = subdirPath.split("/")
+        println("FileService.findSubdirectory: pathParts = $pathParts")
 
-        var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return null
+        var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri)
+        if (currentDir == null) {
+            println("FileService.findSubdirectory: Failed to get DocumentFile from baseUri")
+            return null
+        }
+
+        println("FileService.findSubdirectory: Starting directory = ${currentDir.name}")
 
         for (part in pathParts) {
             if (part.isEmpty()) continue
-            currentDir = currentDir.findFile(part) ?: return null
-            if (!currentDir.isDirectory) return null
+            println("FileService.findSubdirectory: Looking for part: '$part'")
+
+            val foundDir = currentDir.findFile(part)
+            if (foundDir == null) {
+                println("FileService.findSubdirectory: Part '$part' not found")
+                // List what files actually exist
+                currentDir.listFiles().forEach { file ->
+                    println("  Available: ${file.name} (isDir: ${file.isDirectory})")
+                }
+                return null
+            }
+
+            if (!foundDir.isDirectory) {
+                println("FileService.findSubdirectory: Part '$part' is not a directory")
+                return null
+            }
+
+            currentDir = foundDir
+            println("FileService.findSubdirectory: Found directory: ${currentDir.name}")
         }
 
+        println("FileService.findSubdirectory: Successfully found all subdirectories")
         return currentDir
     }
 

@@ -82,10 +82,10 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
                 // Initialize FileService context if not already set
                 FileService.applicationContext = context
 
-                val vaultPath = Preferences.instance.vaultPath.value
-                if (vaultPath.isNotBlank()) {
+                val fullTasksPath = Preferences.instance.getFullTasksPath()
+                if (fullTasksPath.isNotBlank()) {
                     val fileService = FileService()
-                    val taskFiles = fileService.listTaskFiles(vaultPath)
+                    val taskFiles = fileService.listTaskFiles(fullTasksPath)
 
                     tasks = taskFiles.mapNotNull { filePath ->
                         val filename = extractFilename(filePath)
