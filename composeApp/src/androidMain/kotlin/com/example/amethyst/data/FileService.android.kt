@@ -214,7 +214,8 @@ actual class FileService actual constructor() {
         val subdirPath = fullPath.substringAfter("/.")
         if (!subdirPath.startsWith(".")) return null
 
-        val pathParts = ("." + subdirPath).split("/")
+        // subdirPath already starts with ".", so just split it
+        val pathParts = subdirPath.split("/")
 
         var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return null
 
