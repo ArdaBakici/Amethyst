@@ -1,5 +1,6 @@
 package com.example.amethyst.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +22,8 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     vaultPath: String,
     onVaultPathChange: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    canNavigateBack: Boolean = true
 ) {
     val preferences = remember { Preferences.instance }
     val themeMode by preferences.themeMode.collectAsState()
@@ -30,6 +32,11 @@ fun SettingsScreen(
 
     var validationResult by remember { mutableStateOf<VaultValidationResult?>(null) }
     var isValidating by remember { mutableStateOf(false) }
+
+    // Handle Android back button (only when back navigation is allowed)
+    BackHandler(enabled = canNavigateBack) {
+        onNavigateBack()
+    }
 
     // Validate vault when path changes
     LaunchedEffect(vaultPath) {
@@ -51,10 +58,14 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                navigationIcon = if (canNavigateBack) {
+                    {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, "Back")
+                        }
                     }
+                } else {
+                    null
                 }
             )
         }

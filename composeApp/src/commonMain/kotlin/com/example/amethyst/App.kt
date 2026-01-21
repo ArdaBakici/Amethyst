@@ -64,7 +64,8 @@ fun App() {
                 SettingsScreen(
                     vaultPath = vaultRootPath,
                     onVaultPathChange = { preferences.setVaultRootPath(it) },
-                    onNavigateBack = { /* No back navigation from initial setup */ }
+                    onNavigateBack = { /* No back navigation from initial setup */ },
+                    canNavigateBack = false
                 )
             }
             viewModel != null -> {

@@ -1,5 +1,6 @@
 package com.example.amethyst.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,11 @@ fun TaskDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPriorityMenu by remember { mutableStateOf(false) }
     var showStatusMenu by remember { mutableStateOf(false) }
+
+    // Handle Android back button
+    BackHandler {
+        onNavigateBack()
+    }
 
     Scaffold(
         topBar = {
