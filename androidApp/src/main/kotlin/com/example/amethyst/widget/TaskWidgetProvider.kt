@@ -94,6 +94,8 @@ class TaskWidgetProvider : AppWidgetProvider() {
                 // Set unique data to ensure Android creates separate service instances for each widget
                 data = android.net.Uri.parse("content://widget/$appWidgetId")
             }
+            // Using service-based adapter for backward compatibility with older Android versions
+            @Suppress("DEPRECATION")
             views.setRemoteAdapter(R.id.widget_task_list, listIntent)
             println("TaskWidgetProvider.updateAppWidget: Set remote adapter with unique intent for widget $appWidgetId")
 
