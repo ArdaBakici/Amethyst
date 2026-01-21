@@ -17,30 +17,53 @@ actual class FileService actual constructor() {
 
     actual suspend fun listTaskFiles(directoryPath: String): List<String> = withContext(Dispatchers.IO) {
         try {
+            println("FileService.listTaskFiles: directoryPath = $directoryPath")
+
             if (directoryPath.startsWith("content://")) {
                 // Check if this is a subdirectory path
                 if (directoryPath.contains("/") && !directoryPath.endsWith("/tree/primary:")) {
                     // Extract vault root and subdirectory
                     val parts = directoryPath.split("/tree/")
+                    println("FileService.listTaskFiles: Split into ${parts.size} parts")
+
                     if (parts.size == 2) {
                         val baseUri = parts[0] + "/tree/" + parts[1].substringBefore('/')
                         val subdirPath = parts[1].substringAfter('/', "")
-                        if (subdirPath.isNotEmpty()) {
+
+                        println("FileService.listTaskFiles: baseUri = $baseUri")
+                        println("FileService.listTaskFiles: subdirPath = '$subdirPath'")
+
+                        val files = if (subdirPath.isNotEmpty()) {
+                            println("FileService.listTaskFiles: Listing from subdirectory")
                             listTaskFilesFromSubdirectory(baseUri, subdirPath)
                         } else {
+                            println("FileService.listTaskFiles: Listing from content URI root")
                             listTaskFilesFromContentUri(directoryPath)
                         }
+
+                        println("FileService.listTaskFiles: Found ${files.size} files")
+                        files
                     } else {
-                        listTaskFilesFromContentUri(directoryPath)
+                        println("FileService.listTaskFiles: Invalid split, using direct content URI")
+                        val files = listTaskFilesFromContentUri(directoryPath)
+                        println("FileService.listTaskFiles: Found ${files.size} files")
+                        files
                     }
                 } else {
-                    listTaskFilesFromContentUri(directoryPath)
+                    println("FileService.listTaskFiles: Using direct content URI (root)")
+                    val files = listTaskFilesFromContentUri(directoryPath)
+                    println("FileService.listTaskFiles: Found ${files.size} files")
+                    files
                 }
             } else {
-                listTaskFilesFromPath(directoryPath)
+                println("FileService.listTaskFiles: Using file path")
+                val files = listTaskFilesFromPath(directoryPath)
+                println("FileService.listTaskFiles: Found ${files.size} files")
+                files
             }
         } catch (e: Exception) {
-            println("Error listing files: ${e.message}")
+            println("FileService.listTaskFiles: Error listing files: ${e.message}")
+            e.printStackTrace()
             emptyList()
         }
     }
@@ -284,16 +307,22 @@ actual class FileService actual constructor() {
                     }
                 }
 
-                println("FileService.writeFileToContentUri: Target directory: ${targetDir.name}")
+                // Ensure we have a valid target directory (Kotlin smart cast requirement)
+                val finalTargetDir = targetDir ?: run {
+                    println("FileService.writeFileToContentUri: Lost reference to target directory")
+                    return false
+                }
+
+                println("FileService.writeFileToContentUri: Target directory: ${finalTargetDir.name}")
 
                 // Check if file already exists in target directory
-                val existingFile = targetDir.findFile(filename)
+                val existingFile = finalTargetDir.findFile(filename)
                 val fileUri = if (existingFile != null) {
                     println("FileService.writeFileToContentUri: File exists, updating: $filename")
                     existingFile.uri
                 } else {
                     println("FileService.writeFileToContentUri: Creating new file: $filename")
-                    targetDir.createFile("text/markdown", filename)?.uri
+                    finalTargetDir.createFile("text/markdown", filename)?.uri
                 }
 
                 fileUri?.let { uri ->

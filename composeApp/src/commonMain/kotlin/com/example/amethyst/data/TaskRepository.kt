@@ -26,19 +26,34 @@ class TaskRepository(
     suspend fun loadTasks() {
         _isLoading.value = true
         try {
+            println("TaskRepository.loadTasks: Loading tasks from directory: $vaultPath")
             val taskFiles = fileService.listTaskFiles(vaultPath)
+            println("TaskRepository.loadTasks: Found ${taskFiles.size} task files")
+
+            taskFiles.forEachIndexed { index, filePath ->
+                println("TaskRepository.loadTasks: Task file ${index + 1}: $filePath")
+            }
+
             val loadedTasks = taskFiles.mapNotNull { filePath ->
                 val filename = extractFilename(filePath)
+                println("TaskRepository.loadTasks: Reading file: $filename from path: $filePath")
                 fileService.readFile(filePath)?.let { content ->
+                    println("TaskRepository.loadTasks: Successfully read ${content.length} bytes from $filename")
                     TaskSerializer.parseTask(filename, content)?.also { task ->
                         // Store the mapping between task ID and actual file URI
                         taskFileMap[task.id] = filePath
+                        println("TaskRepository.loadTasks: Parsed task: ${task.title} (id: ${task.id})")
                     }
+                } ?: run {
+                    println("TaskRepository.loadTasks: Failed to read file: $filePath")
+                    null
                 }
             }
             _tasks.value = loadedTasks
+            println("TaskRepository.loadTasks: Loaded ${loadedTasks.size} tasks successfully")
         } catch (e: Exception) {
-            println("Error loading tasks: ${e.message}")
+            println("TaskRepository.loadTasks: Error loading tasks: ${e.message}")
+            e.printStackTrace()
         } finally {
             _isLoading.value = false
         }
@@ -49,6 +64,9 @@ class TaskRepository(
     }
 
     suspend fun createTask(task: Task): Boolean {
+        println("TaskRepository.createTask: Creating task: ${task.title}")
+        println("TaskRepository.createTask: Vault path: $vaultPath")
+
         val now = Clock.System.now()
         val newTask = task.copy(
             createdAt = task.createdAt ?: now,
@@ -56,28 +74,51 @@ class TaskRepository(
         )
 
         val filePath = constructFilePath(newTask.id)
-        val content = TaskSerializer.serializeTask(newTask)
+        println("TaskRepository.createTask: Constructed file path: $filePath")
+        println("TaskRepository.createTask: Task ID: ${newTask.id}")
 
-        return if (fileService.writeFile(filePath, content)) {
+        val content = TaskSerializer.serializeTask(newTask)
+        println("TaskRepository.createTask: Serialized content length: ${content.length} bytes")
+
+        val success = fileService.writeFile(filePath, content)
+        if (success) {
+            println("TaskRepository.createTask: Successfully wrote task to: $filePath")
             taskFileMap[newTask.id] = filePath
             _tasks.value = _tasks.value + newTask
+            println("TaskRepository.createTask: Task added to repository. Total tasks: ${_tasks.value.size}")
             true
         } else {
+            println("TaskRepository.createTask: Failed to write task to: $filePath")
             false
         }
     }
 
     suspend fun updateTask(task: Task): Boolean {
+        println("TaskRepository.updateTask: Updating task: ${task.title}")
+        println("TaskRepository.updateTask: Task ID: ${task.id}")
+
         val updatedTask = task.copy(modifiedAt = Clock.System.now())
 
         // Use the stored file path/URI for this task
         val filePath = taskFileMap[updatedTask.id] ?: constructFilePath(updatedTask.id)
-        val content = TaskSerializer.serializeTask(updatedTask)
+        val useStoredPath = taskFileMap.containsKey(updatedTask.id)
 
-        return if (fileService.writeFile(filePath, content)) {
+        println("TaskRepository.updateTask: Using ${if (useStoredPath) "stored" else "constructed"} file path: $filePath")
+        if (useStoredPath) {
+            println("TaskRepository.updateTask: Original file path from map: ${taskFileMap[updatedTask.id]}")
+        }
+
+        val content = TaskSerializer.serializeTask(updatedTask)
+        println("TaskRepository.updateTask: Serialized content length: ${content.length} bytes")
+
+        val success = fileService.writeFile(filePath, content)
+        if (success) {
+            println("TaskRepository.updateTask: Successfully updated task at: $filePath")
             _tasks.value = _tasks.value.map { if (it.id == updatedTask.id) updatedTask else it }
+            println("TaskRepository.updateTask: Task updated in repository")
             true
         } else {
+            println("TaskRepository.updateTask: Failed to update task at: $filePath")
             false
         }
     }
