@@ -83,6 +83,10 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
 
+            // Set click intent to open the app when task is tapped
+            val fillInIntent = Intent()
+            views.setOnClickFillInIntent(R.id.widget_task_item_background, fillInIntent)
+
             println("TaskWidgetService.getViewAt: Set task '${task.title}' at position $position")
         }
 
