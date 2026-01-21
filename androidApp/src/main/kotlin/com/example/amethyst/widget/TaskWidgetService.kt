@@ -84,7 +84,7 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
                 FileService.applicationContext = context
 
                 // Initialize Preferences if not already set
-                if (!Preferences.Companion::instance.isInitialized) {
+                if (!Preferences.isInitialized) {
                     Preferences.initialize(PreferencesStore(context))
                 }
 

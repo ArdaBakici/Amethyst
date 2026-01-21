@@ -88,6 +88,9 @@ class Preferences(private val store: PreferencesStore) {
         lateinit var instance: Preferences
             private set
 
+        val isInitialized: Boolean
+            get() = ::instance.isInitialized
+
         fun initialize(store: PreferencesStore) {
             instance = Preferences(store)
         }

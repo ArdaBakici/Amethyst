@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         FileService.applicationContext = applicationContext
 
         // Initialize Preferences with PreferencesStore
-        if (!Preferences.Companion::instance.isInitialized) {
+        if (!Preferences.isInitialized) {
             Preferences.initialize(PreferencesStore(applicationContext))
         }
 
