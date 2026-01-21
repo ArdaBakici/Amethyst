@@ -18,7 +18,24 @@ actual class FileService actual constructor() {
     actual suspend fun listTaskFiles(directoryPath: String): List<String> = withContext(Dispatchers.IO) {
         try {
             if (directoryPath.startsWith("content://")) {
-                listTaskFilesFromContentUri(directoryPath)
+                // Check if this is a subdirectory path
+                if (directoryPath.contains("/") && !directoryPath.endsWith("/tree/primary:")) {
+                    // Extract vault root and subdirectory
+                    val parts = directoryPath.split("/tree/")
+                    if (parts.size == 2) {
+                        val baseUri = parts[0] + "/tree/" + parts[1].substringBefore('/')
+                        val subdirPath = parts[1].substringAfter('/', "")
+                        if (subdirPath.isNotEmpty()) {
+                            listTaskFilesFromSubdirectory(baseUri, subdirPath)
+                        } else {
+                            listTaskFilesFromContentUri(directoryPath)
+                        }
+                    } else {
+                        listTaskFilesFromContentUri(directoryPath)
+                    }
+                } else {
+                    listTaskFilesFromContentUri(directoryPath)
+                }
             } else {
                 listTaskFilesFromPath(directoryPath)
             }
@@ -31,7 +48,14 @@ actual class FileService actual constructor() {
     actual suspend fun readFile(filePath: String): String? = withContext(Dispatchers.IO) {
         try {
             if (filePath.startsWith("content://")) {
-                readFileFromContentUri(filePath)
+                // Check if this is a subdirectory file path (contains /. pattern)
+                if (filePath.contains("/.")) {
+                    val vaultRoot = filePath.substringBefore("/.")
+                    val relativePath = filePath.substringAfter(vaultRoot + "/")
+                    readFileFromSubdirectory(vaultRoot, relativePath)
+                } else {
+                    readFileFromContentUri(filePath)
+                }
             } else {
                 File(filePath).takeIf { it.exists() }?.readText()
             }
@@ -70,9 +94,16 @@ actual class FileService actual constructor() {
 
     actual suspend fun directoryExists(directoryPath: String): Boolean = withContext(Dispatchers.IO) {
         if (directoryPath.startsWith("content://")) {
-            val uri = Uri.parse(directoryPath)
-            val docFile = DocumentFile.fromTreeUri(applicationContext, uri)
-            docFile?.exists() ?: false
+            // For content URIs, check if the directory exists
+            // If it's the root URI, check directly
+            if (!directoryPath.contains("/.")) {
+                val uri = Uri.parse(directoryPath)
+                val docFile = DocumentFile.fromTreeUri(applicationContext, uri)
+                docFile?.exists() ?: false
+            } else {
+                // For subdirectories like .obsidian, we need to navigate
+                findSubdirectory(directoryPath) != null
+            }
         } else {
             File(directoryPath).exists() && File(directoryPath).isDirectory
         }
@@ -171,5 +202,74 @@ actual class FileService actual constructor() {
         val uri = Uri.parse(uriString)
         val docFile = DocumentFile.fromSingleUri(applicationContext, uri)
         return docFile?.delete() ?: false
+    }
+
+    /**
+     * Finds a subdirectory within a content URI path
+     * For paths like "content://.../.obsidian/plugins/tasknotes"
+     */
+    private fun findSubdirectory(fullPath: String): DocumentFile? {
+        // Extract base URI and subdirectory path
+        val baseUri = fullPath.substringBefore("/.").let { Uri.parse(it) }
+        val subdirPath = fullPath.substringAfter("/.")
+        if (!subdirPath.startsWith(".")) return null
+
+        val pathParts = ("." + subdirPath).split("/")
+
+        var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return null
+
+        for (part in pathParts) {
+            if (part.isEmpty()) continue
+            currentDir = currentDir.findFile(part) ?: return null
+            if (!currentDir.isDirectory) return null
+        }
+
+        return currentDir
+    }
+
+    /**
+     * Reads a file from a subdirectory path like ".obsidian/plugins/tasknotes/data.json"
+     */
+    private fun readFileFromSubdirectory(vaultRootUri: String, relativePath: String): String? {
+        val pathParts = relativePath.split("/")
+        val fileName = pathParts.last()
+        val dirPath = pathParts.dropLast(1).joinToString("/")
+
+        val baseUri = Uri.parse(vaultRootUri)
+        var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return null
+
+        // Navigate to the directory
+        for (part in dirPath.split("/")) {
+            if (part.isEmpty()) continue
+            currentDir = currentDir.findFile(part) ?: return null
+            if (!currentDir.isDirectory) return null
+        }
+
+        // Find and read the file
+        val file = currentDir.findFile(fileName) ?: return null
+        return applicationContext.contentResolver.openInputStream(file.uri)?.use { inputStream ->
+            inputStream.bufferedReader().use { it.readText() }
+        }
+    }
+
+    /**
+     * Lists task files from a subdirectory within a content URI
+     */
+    private fun listTaskFilesFromSubdirectory(vaultRootUri: String, relativePath: String): List<String> {
+        val baseUri = Uri.parse(vaultRootUri)
+        var currentDir = DocumentFile.fromTreeUri(applicationContext, baseUri) ?: return emptyList()
+
+        // Navigate to the subdirectory
+        for (part in relativePath.split("/")) {
+            if (part.isEmpty()) continue
+            currentDir = currentDir.findFile(part) ?: return emptyList()
+            if (!currentDir.isDirectory) return emptyList()
+        }
+
+        // List markdown files in the subdirectory
+        return currentDir.listFiles()
+            .filter { it.isFile && it.name?.endsWith(".md") == true }
+            .mapNotNull { it.uri.toString() }
+            .sorted()
     }
 }

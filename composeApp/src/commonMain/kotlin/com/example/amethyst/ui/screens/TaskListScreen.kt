@@ -29,7 +29,7 @@ fun TaskListScreen(
     viewModel: TaskViewModel,
     onTaskClick: (Task) -> Unit,
     onAddTask: () -> Unit,
-    onToggleTheme: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     val filteredTasks by viewModel.filteredTasks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -44,11 +44,11 @@ fun TaskListScreen(
             TopAppBar(
                 title = { Text("Amethyst Tasks") },
                 actions = {
-                    IconButton(onClick = onToggleTheme) {
-                        Icon(Icons.Default.DarkMode, "Toggle theme")
-                    }
                     IconButton(onClick = { showFilterDialog = true }) {
                         Icon(Icons.Default.FilterList, "Filters")
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, "Settings")
                     }
                 }
             )
