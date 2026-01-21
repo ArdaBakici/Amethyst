@@ -3,6 +3,7 @@ package com.example.amethyst.data
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 
 enum class ThemeMode {
     LIGHT, DARK, SYSTEM
@@ -33,17 +34,31 @@ class Preferences(private val store: PreferencesStore) {
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    // Computed property for the full vault path (root + tasks folder)
-    val vaultPath: StateFlow<String> = _vaultRootPath
+    // Combined flow that updates when either vault root or tasks folder changes
+    private val _vaultPath = MutableStateFlow(getFullTasksPath())
+    val vaultPath: StateFlow<String> = _vaultPath.asStateFlow()
+
+    init {
+        println("Preferences initialized:")
+        println("  vaultRootPath: ${_vaultRootPath.value}")
+        println("  tasksFolder: ${_tasksFolder.value}")
+        println("  combined vaultPath: ${_vaultPath.value}")
+    }
 
     fun setVaultRootPath(path: String) {
+        println("Preferences.setVaultRootPath: $path")
         _vaultRootPath.value = path
         store.saveString(KEY_VAULT_ROOT, path)
+        _vaultPath.value = getFullTasksPath()
+        println("Preferences: Updated vaultPath to: ${_vaultPath.value}")
     }
 
     fun setTasksFolder(folder: String) {
+        println("Preferences.setTasksFolder: $folder")
         _tasksFolder.value = folder
         store.saveString(KEY_TASKS_FOLDER, folder)
+        _vaultPath.value = getFullTasksPath()
+        println("Preferences: Updated vaultPath to: ${_vaultPath.value}")
     }
 
     fun setThemeMode(mode: ThemeMode) {
