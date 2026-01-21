@@ -292,10 +292,16 @@ actual class FileService actual constructor() {
                     if (subdirName.isEmpty()) continue
                     println("FileService.writeFileToContentUri: Navigating to: $subdirName")
 
-                    targetDir = targetDir.findFile(subdirName) ?: run {
+                    // Create immutable reference for Kotlin smart cast
+                    val currentDir = targetDir ?: run {
+                        println("FileService.writeFileToContentUri: Lost reference to target directory")
+                        return false
+                    }
+
+                    targetDir = currentDir.findFile(subdirName) ?: run {
                         println("FileService.writeFileToContentUri: Subdirectory not found: $subdirName")
                         println("Available files:")
-                        targetDir.listFiles().forEach { file ->
+                        currentDir.listFiles().forEach { file ->
                             println("  - ${file.name} (isDir: ${file.isDirectory})")
                         }
                         return false
