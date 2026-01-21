@@ -5,9 +5,13 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.widget.RemoteViews
 import com.example.amethyst.MainActivity
 import com.example.amethyst.R
+import com.example.amethyst.data.Preferences
+import com.example.amethyst.data.PreferencesStore
+import com.example.amethyst.data.ThemeMode
 
 class TaskWidgetProvider : AppWidgetProvider() {
 
@@ -30,14 +34,47 @@ class TaskWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private fun isDarkMode(context: Context): Boolean {
+            // Initialize Preferences if needed
+            if (!Preferences.isInitialized) {
+                Preferences.initialize(PreferencesStore(context))
+            }
+
+            val themeMode = Preferences.instance.themeMode.value
+
+            return when (themeMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> {
+                    val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                    uiMode == Configuration.UI_MODE_NIGHT_YES
+                }
+            }
+        }
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
             println("TaskWidgetProvider.updateAppWidget: Updating widget $appWidgetId")
+
+            val isDark = isDarkMode(context)
+            println("TaskWidgetProvider.updateAppWidget: Dark mode = $isDark")
+
             val views = RemoteViews(context.packageName, R.layout.widget_task_list)
             println("TaskWidgetProvider.updateAppWidget: Created RemoteViews for ${context.packageName}")
+
+            // Apply theme colors
+            val backgroundColor = if (isDark) 0xFF1E1E1E.toInt() else 0xFFFFFFFF.toInt()
+            val titleColor = if (isDark) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
+            val emptyTextColor = if (isDark) 0xFF888888.toInt() else 0xFF666666.toInt()
+            val dividerColor = if (isDark) 0xFF444444.toInt() else 0xFFCCCCCC.toInt()
+
+            views.setInt(R.id.widget_background, "setBackgroundColor", backgroundColor)
+            views.setTextColor(R.id.widget_title, titleColor)
+            views.setTextColor(R.id.widget_empty_view, emptyTextColor)
+            println("TaskWidgetProvider.updateAppWidget: Applied theme colors")
 
             // Set up the intent to launch MainActivity when widget is clicked
             val intent = Intent(context, MainActivity::class.java)
