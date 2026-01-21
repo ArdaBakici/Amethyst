@@ -196,15 +196,8 @@ class TaskWidgetProvider : AppWidgetProvider() {
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
 
-            // Set click action to open the app
-            val clickIntent = Intent(context, MainActivity::class.java)
-            val clickPendingIntent = PendingIntent.getActivity(
-                context,
-                task.id.hashCode(), // Use task ID hash for unique request code
-                clickIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_task_item_background, clickPendingIntent)
+            // Don't set click handlers - RemoteCollectionItems doesn't support item-level clicks
+            // Clicks will be handled by tapping the widget title which opens the app
 
             return views
         }
