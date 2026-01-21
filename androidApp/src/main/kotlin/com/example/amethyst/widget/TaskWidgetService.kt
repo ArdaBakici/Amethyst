@@ -78,25 +78,40 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     override fun hasStableIds(): Boolean = true
 
     private fun loadTasks() {
+        println("TaskWidgetService.loadTasks: Starting to load tasks")
         runBlocking {
             try {
                 // Initialize FileService context if not already set
                 FileService.applicationContext = context
+                println("TaskWidgetService.loadTasks: FileService context set")
 
                 // Initialize Preferences if not already set
                 if (!Preferences.isInitialized) {
+                    println("TaskWidgetService.loadTasks: Initializing Preferences")
                     Preferences.initialize(PreferencesStore(context))
+                } else {
+                    println("TaskWidgetService.loadTasks: Preferences already initialized")
                 }
 
                 val fullTasksPath = Preferences.instance.getFullTasksPath()
+                println("TaskWidgetService.loadTasks: fullTasksPath = '$fullTasksPath'")
+
                 if (fullTasksPath.isNotBlank()) {
                     val fileService = FileService()
                     val taskFiles = fileService.listTaskFiles(fullTasksPath)
+                    println("TaskWidgetService.loadTasks: Found ${taskFiles.size} task files")
 
                     tasks = taskFiles.mapNotNull { filePath ->
+                        println("TaskWidgetService.loadTasks: Processing file: $filePath")
                         val filename = extractFilename(filePath)
                         fileService.readFile(filePath)?.let { content ->
-                            TaskSerializer.parseTask(filename, content)
+                            println("TaskWidgetService.loadTasks: Read content for $filename (${content.length} bytes)")
+                            TaskSerializer.parseTask(filename, content)?.also { task ->
+                                println("TaskWidgetService.loadTasks: Parsed task: ${task.title}")
+                            }
+                        } ?: run {
+                            println("TaskWidgetService.loadTasks: Failed to read file: $filePath")
+                            null
                         }
                     }.filter { it.status != TaskStatus.DONE }
                         .sortedWith(compareBy(
@@ -104,12 +119,19 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
                             { it.due },
                             { it.title }
                         ))
+
+                    println("TaskWidgetService.loadTasks: Loaded ${tasks.size} active tasks")
+                } else {
+                    println("TaskWidgetService.loadTasks: fullTasksPath is blank, no tasks to load")
+                    tasks = emptyList()
                 }
             } catch (e: Exception) {
+                println("TaskWidgetService.loadTasks: Exception occurred: ${e.message}")
                 e.printStackTrace()
                 tasks = emptyList()
             }
         }
+        println("TaskWidgetService.loadTasks: Finished loading, tasks count = ${tasks.size}")
     }
 
     private fun extractFilename(path: String): String {
