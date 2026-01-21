@@ -6,12 +6,20 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import com.example.amethyst.MainActivity
 import com.example.amethyst.R
+import com.example.amethyst.data.FileService
 import com.example.amethyst.data.Preferences
 import com.example.amethyst.data.PreferencesStore
+import com.example.amethyst.data.TaskSerializer
 import com.example.amethyst.data.ThemeMode
+import com.example.amethyst.model.Task
+import com.example.amethyst.model.TaskStatus
+import kotlinx.coroutines.runBlocking
+import java.net.URLDecoder
 
 class TaskWidgetProvider : AppWidgetProvider() {
 
@@ -52,6 +60,155 @@ class TaskWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        /**
+         * Sets up widget using RemoteCollectionItems API (Android 12+).
+         * Loads tasks and builds RemoteViews collection directly.
+         */
+        @RequiresApi(Build.VERSION_CODES.S)
+        private fun setupRemoteCollectionItems(
+            context: Context,
+            views: RemoteViews,
+            isDark: Boolean
+        ) {
+            // Initialize services
+            FileService.applicationContext = context
+            if (!Preferences.isInitialized) {
+                Preferences.initialize(PreferencesStore(context))
+            }
+
+            // Load tasks
+            val tasks = loadTasksForWidget(context)
+            println("TaskWidgetProvider.setupRemoteCollectionItems: Loaded ${tasks.size} tasks")
+
+            // Build RemoteViews for each task
+            val itemBuilder = RemoteViews.RemoteCollectionItems.Builder()
+
+            tasks.forEachIndexed { index, task ->
+                val itemView = createTaskItemView(context, task, isDark)
+                itemBuilder.addItem(index.toLong(), itemView)
+            }
+
+            val collectionItems = itemBuilder
+                .setHasStableIds(true)
+                .setViewTypeCount(1)
+                .build()
+
+            views.setRemoteAdapter(R.id.widget_task_list, collectionItems)
+            println("TaskWidgetProvider.setupRemoteCollectionItems: Set ${tasks.size} items to widget")
+        }
+
+        /**
+         * Sets up widget using service-based RemoteViewsService approach.
+         * Used for Android versions prior to 12 where RemoteCollectionItems is not available.
+         */
+        @Suppress("DEPRECATION")
+        private fun setupServiceBasedAdapter(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int,
+            views: RemoteViews
+        ) {
+            // IMPORTANT: Intent must be unique per widget instance
+            val listIntent = Intent(context, TaskWidgetService::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                // Set unique data to ensure Android creates separate service instances for each widget
+                data = android.net.Uri.parse("content://widget/$appWidgetId")
+            }
+            views.setRemoteAdapter(R.id.widget_task_list, listIntent)
+            println("TaskWidgetProvider.setupServiceBasedAdapter: Set remote adapter with unique intent for widget $appWidgetId")
+
+            // Notify that data has changed (triggers onDataSetChanged)
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
+            println("TaskWidgetProvider.setupServiceBasedAdapter: Called notifyAppWidgetViewDataChanged")
+        }
+
+        private fun loadTasksForWidget(context: Context): List<Task> {
+            return runBlocking {
+                try {
+                    val fullTasksPath = Preferences.instance.getFullTasksPath()
+                    if (fullTasksPath.isBlank()) {
+                        println("TaskWidgetProvider.loadTasksForWidget: No tasks path configured")
+                        return@runBlocking emptyList()
+                    }
+
+                    val fileService = FileService()
+                    val taskFiles = fileService.listTaskFiles(fullTasksPath)
+                    println("TaskWidgetProvider.loadTasksForWidget: Found ${taskFiles.size} task files")
+
+                    taskFiles.mapNotNull { filePath ->
+                        val filename = extractFilename(filePath)
+                        fileService.readFile(filePath)?.let { content ->
+                            TaskSerializer.parseTask(filename, content)
+                        }
+                    }.filter { it.status != TaskStatus.DONE }
+                        .sortedWith(compareBy(
+                            { it.priority?.ordinal ?: Int.MAX_VALUE },
+                            { it.due },
+                            { it.title }
+                        ))
+                } catch (e: Exception) {
+                    println("TaskWidgetProvider.loadTasksForWidget: Error loading tasks: ${e.message}")
+                    e.printStackTrace()
+                    emptyList()
+                }
+            }
+        }
+
+        private fun createTaskItemView(context: Context, task: Task, isDark: Boolean): RemoteViews {
+            val views = RemoteViews(context.packageName, R.layout.widget_task_item)
+
+            // Apply theme colors
+            val itemBackgroundColor = if (isDark) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
+            val titleColor = if (isDark) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
+            val detailsColor = if (isDark) 0xFF999999.toInt() else 0xFF666666.toInt()
+
+            views.setInt(R.id.widget_task_item_background, "setBackgroundColor", itemBackgroundColor)
+
+            // Set task title
+            views.setTextViewText(R.id.task_title, task.title)
+            views.setTextColor(R.id.task_title, titleColor)
+
+            // Set task details
+            val details = buildString {
+                task.priority?.let { append("${it.displayName} • ") }
+                task.due?.let { append("Due: $it • ") }
+                if (task.contexts.isNotEmpty()) {
+                    append(task.contexts.joinToString(", ") { "@$it" })
+                }
+            }.trimEnd('•', ' ')
+
+            views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
+            views.setTextColor(R.id.task_details, detailsColor)
+
+            // Set checkbox state
+            views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
+
+            // Set click intent
+            val fillInIntent = Intent()
+            views.setOnClickFillInIntent(R.id.widget_task_item_background, fillInIntent)
+
+            return views
+        }
+
+        private fun extractFilename(path: String): String {
+            val rawFilename = path.substringAfterLast('/')
+                .substringAfterLast('\\')
+
+            val decoded = try {
+                URLDecoder.decode(rawFilename, "UTF-8")
+            } catch (e: Exception) {
+                rawFilename
+            }
+
+            // For Android content URI document IDs like "primary:Sync/Vault/task.md"
+            // extract just the filename from the full document path
+            return if (decoded.contains('/') || decoded.contains('\\')) {
+                decoded.substringAfterLast('/').substringAfterLast('\\')
+            } else {
+                decoded
+            }
+        }
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -88,16 +245,15 @@ class TaskWidgetProvider : AppWidgetProvider() {
             println("TaskWidgetProvider.updateAppWidget: Set title click listener")
 
             // Set up the intent for the task list
-            // IMPORTANT: Intent must be unique per widget instance
-            val listIntent = Intent(context, TaskWidgetService::class.java).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                // Set unique data to ensure Android creates separate service instances for each widget
-                data = android.net.Uri.parse("content://widget/$appWidgetId")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12+ (API 31+): Use new RemoteCollectionItems API
+                println("TaskWidgetProvider.updateAppWidget: Using RemoteCollectionItems API for Android 12+")
+                setupRemoteCollectionItems(context, views, isDark)
+            } else {
+                // Pre-Android 12: Use service-based approach (deprecated but necessary for older versions)
+                println("TaskWidgetProvider.updateAppWidget: Using service-based adapter for pre-Android 12")
+                setupServiceBasedAdapter(context, appWidgetManager, appWidgetId, views)
             }
-            // Using service-based adapter for backward compatibility with older Android versions
-            @Suppress("DEPRECATION")
-            views.setRemoteAdapter(R.id.widget_task_list, listIntent)
-            println("TaskWidgetProvider.updateAppWidget: Set remote adapter with unique intent for widget $appWidgetId")
 
             // Set empty view
             views.setEmptyView(R.id.widget_task_list, R.id.widget_empty_view)
@@ -117,11 +273,6 @@ class TaskWidgetProvider : AppWidgetProvider() {
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
             println("TaskWidgetProvider.updateAppWidget: Called updateAppWidget")
-
-            // Notify the widget that data has changed
-            @Suppress("DEPRECATION")
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
-            println("TaskWidgetProvider.updateAppWidget: Called notifyAppWidgetViewDataChanged")
         }
 
         fun updateAllWidgets(context: Context) {
