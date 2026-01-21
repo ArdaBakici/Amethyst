@@ -183,9 +183,15 @@ class TaskWidgetProvider : AppWidgetProvider() {
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
 
-            // Set click intent
-            val fillInIntent = Intent()
-            views.setOnClickFillInIntent(R.id.widget_task_item_background, fillInIntent)
+            // Set click action to open the app
+            val clickIntent = Intent(context, MainActivity::class.java)
+            val clickPendingIntent = PendingIntent.getActivity(
+                context,
+                task.id.hashCode(), // Use task ID hash for unique request code
+                clickIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_task_item_background, clickPendingIntent)
 
             return views
         }
@@ -249,26 +255,27 @@ class TaskWidgetProvider : AppWidgetProvider() {
                 // Android 12+ (API 31+): Use new RemoteCollectionItems API
                 println("TaskWidgetProvider.updateAppWidget: Using RemoteCollectionItems API for Android 12+")
                 setupRemoteCollectionItems(context, views, isDark)
+                // RemoteCollectionItems: each item has its own PendingIntent, no template needed
             } else {
                 // Pre-Android 12: Use service-based approach (deprecated but necessary for older versions)
                 println("TaskWidgetProvider.updateAppWidget: Using service-based adapter for pre-Android 12")
                 setupServiceBasedAdapter(context, appWidgetManager, appWidgetId, views)
+
+                // Service-based adapter: set up click listener template for list items
+                val clickIntent = Intent(context, MainActivity::class.java)
+                val clickPendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    clickIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setPendingIntentTemplate(R.id.widget_task_list, clickPendingIntent)
+                println("TaskWidgetProvider.updateAppWidget: Set pending intent template")
             }
 
             // Set empty view
             views.setEmptyView(R.id.widget_task_list, R.id.widget_empty_view)
             println("TaskWidgetProvider.updateAppWidget: Set empty view")
-
-            // Set up click listener for list items
-            val clickIntent = Intent(context, MainActivity::class.java)
-            val clickPendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                clickIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setPendingIntentTemplate(R.id.widget_task_list, clickPendingIntent)
-            println("TaskWidgetProvider.updateAppWidget: Set pending intent template")
 
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
