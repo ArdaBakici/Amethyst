@@ -11,6 +11,7 @@ import com.example.amethyst.data.PreferencesStore
 import com.example.amethyst.data.TaskSerializer
 import com.example.amethyst.model.Task
 import com.example.amethyst.model.TaskStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.net.URLDecoder
 
@@ -118,8 +119,9 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             println("TaskWidgetService.loadTasks: fullTasksPath = '$fullTasksPath'")
 
             if (fullTasksPath.isNotBlank()) {
-                // Use runBlocking since onDataSetChanged is already on a background thread
-                runBlocking {
+                // Use runBlocking with IO dispatcher since onDataSetChanged is on a background thread
+                // IO dispatcher is needed to match FileService's withContext(Dispatchers.IO)
+                runBlocking(Dispatchers.IO) {
                     val fileService = FileService()
                     val taskFiles = fileService.listTaskFiles(fullTasksPath)
                     println("TaskWidgetService.loadTasks: Found ${taskFiles.size} task files")
