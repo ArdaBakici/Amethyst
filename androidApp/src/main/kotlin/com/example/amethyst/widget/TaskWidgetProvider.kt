@@ -33,6 +33,23 @@ class TaskWidgetProvider : AppWidgetProvider() {
         // Last widget instance removed
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+
+        // Handle theme change broadcast
+        if (intent.action == "com.example.amethyst.THEME_CHANGED") {
+            println("TaskWidgetProvider: Received THEME_CHANGED broadcast")
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(
+                android.content.ComponentName(context, TaskWidgetProvider::class.java)
+            )
+            if (appWidgetIds.isNotEmpty()) {
+                println("TaskWidgetProvider: Updating ${appWidgetIds.size} widgets for theme change")
+                onUpdate(context, appWidgetManager, appWidgetIds)
+            }
+        }
+    }
+
     companion object {
         private fun isDarkMode(context: Context): Boolean {
             // Initialize Preferences if needed
