@@ -11,6 +11,7 @@ import com.example.amethyst.data.PreferencesStore
 import com.example.amethyst.data.TaskSerializer
 import com.example.amethyst.model.Task
 import com.example.amethyst.model.TaskStatus
+import kotlinx.coroutines.runBlocking
 import java.net.URLDecoder
 
 class TaskWidgetService : RemoteViewsService() {
@@ -117,30 +118,33 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             println("TaskWidgetService.loadTasks: fullTasksPath = '$fullTasksPath'")
 
             if (fullTasksPath.isNotBlank()) {
-                val fileService = FileService()
-                val taskFiles = fileService.listTaskFiles(fullTasksPath)
-                println("TaskWidgetService.loadTasks: Found ${taskFiles.size} task files")
+                // Use runBlocking since onDataSetChanged is already on a background thread
+                runBlocking {
+                    val fileService = FileService()
+                    val taskFiles = fileService.listTaskFiles(fullTasksPath)
+                    println("TaskWidgetService.loadTasks: Found ${taskFiles.size} task files")
 
-                tasks = taskFiles.mapNotNull { filePath ->
-                    println("TaskWidgetService.loadTasks: Processing file: $filePath")
-                    val filename = extractFilename(filePath)
-                    fileService.readFile(filePath)?.let { content ->
-                        println("TaskWidgetService.loadTasks: Read content for $filename (${content.length} bytes)")
-                        TaskSerializer.parseTask(filename, content)?.also { task ->
-                            println("TaskWidgetService.loadTasks: Parsed task: ${task.title}")
+                    tasks = taskFiles.mapNotNull { filePath ->
+                        println("TaskWidgetService.loadTasks: Processing file: $filePath")
+                        val filename = extractFilename(filePath)
+                        fileService.readFile(filePath)?.let { content ->
+                            println("TaskWidgetService.loadTasks: Read content for $filename (${content.length} bytes)")
+                            TaskSerializer.parseTask(filename, content)?.also { task ->
+                                println("TaskWidgetService.loadTasks: Parsed task: ${task.title}")
+                            }
+                        } ?: run {
+                            println("TaskWidgetService.loadTasks: Failed to read file: $filePath")
+                            null
                         }
-                    } ?: run {
-                        println("TaskWidgetService.loadTasks: Failed to read file: $filePath")
-                        null
-                    }
-                }.filter { it.status != TaskStatus.DONE }
-                    .sortedWith(compareBy(
-                        { it.priority?.ordinal ?: Int.MAX_VALUE },
-                        { it.due },
-                        { it.title }
-                    ))
+                    }.filter { it.status != TaskStatus.DONE }
+                        .sortedWith(compareBy(
+                            { it.priority?.ordinal ?: Int.MAX_VALUE },
+                            { it.due },
+                            { it.title }
+                        ))
 
-                println("TaskWidgetService.loadTasks: Loaded ${tasks.size} active tasks")
+                    println("TaskWidgetService.loadTasks: Loaded ${tasks.size} active tasks")
+                }
             } else {
                 println("TaskWidgetService.loadTasks: fullTasksPath is blank, no tasks to load")
                 tasks = emptyList()
