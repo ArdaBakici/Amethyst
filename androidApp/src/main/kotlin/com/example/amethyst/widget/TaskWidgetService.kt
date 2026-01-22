@@ -27,9 +27,9 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private var isDarkMode: Boolean = false
 
     override fun onCreate() {
-        println("TaskWidgetService.onCreate: Creating widget factory - doing minimal work")
+        println("TaskWidgetService.onCreate: Creating widget factory and loading initial data")
         updateThemeMode()
-        // Don't load tasks here - let onDataSetChanged do it
+        loadTasks()
     }
 
     override fun onDataSetChanged() {
