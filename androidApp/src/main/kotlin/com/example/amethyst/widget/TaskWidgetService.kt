@@ -53,13 +53,6 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
 
         val views = RemoteViews(context.packageName, R.layout.widget_task_item)
 
-        // Apply theme colors
-        val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
-        val detailsColor = if (isDarkMode) 0xFF999999.toInt() else 0xFF666666.toInt()
-
-        views.setTextColor(R.id.task_title, titleColor)
-        views.setTextColor(R.id.task_details, detailsColor)
-
         if (position >= 0 && position < tasks.size) {
             val task = tasks[position]
 
@@ -76,6 +69,13 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             }.trimEnd('•', ' ')
 
             views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
+
+            // Apply theme colors AFTER setting text
+            val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
+            val detailsColor = if (isDarkMode) 0xFF999999.toInt() else 0xFF666666.toInt()
+
+            views.setTextColor(R.id.task_title, titleColor)
+            views.setTextColor(R.id.task_details, detailsColor)
 
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
