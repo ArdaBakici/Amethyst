@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="8dp"
-    android:background="@android:color/white">
+    android:background="#00000000">
 
     <CheckBox
         android:id="@+id/task_checkbox"
@@ -27,7 +27,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textColor="@android:color/black"
+            android:textColor="#FF000000"
             android:maxLines="2"
             android:ellipsize="end" />
 
@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            android:textColor="@android:color/darker_gray"
+            android:textColor="#FF666666"
             android:maxLines="1"
             android:ellipsize="end" />
     </LinearLayout>

@@ -24,14 +24,17 @@ class TaskWidgetService : RemoteViewsService() {
 class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
 
     private var tasks = listOf<Task>()
+    private var isDarkMode: Boolean = false
 
     override fun onCreate() {
         println("TaskWidgetService.onCreate: Creating widget factory - doing minimal work")
+        updateThemeMode()
         // Don't load tasks here - let onDataSetChanged do it
     }
 
     override fun onDataSetChanged() {
         println("TaskWidgetService.onDataSetChanged: Loading/refreshing data")
+        updateThemeMode()
         loadTasks()
     }
 
@@ -49,6 +52,13 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
         println("TaskWidgetService.getViewAt: Creating view for position $position, tasks.size=${tasks.size}")
 
         val views = RemoteViews(context.packageName, R.layout.widget_task_item)
+
+        // Apply theme colors
+        val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
+        val detailsColor = if (isDarkMode) 0xFF999999.toInt() else 0xFF666666.toInt()
+
+        views.setTextColor(R.id.task_title, titleColor)
+        views.setTextColor(R.id.task_details, detailsColor)
 
         if (position >= 0 && position < tasks.size) {
             val task = tasks[position]
@@ -157,6 +167,23 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             tasks = emptyList()
         }
         println("TaskWidgetService.loadTasks: Finished loading, tasks count = ${tasks.size}")
+    }
+
+    private fun updateThemeMode() {
+        // Read theme mode directly from SharedPreferences (fast, non-blocking)
+        val sharedPrefs = context.getSharedPreferences("amethyst_preferences", Context.MODE_PRIVATE)
+        val themeModeOrdinal = sharedPrefs.getInt("theme_mode", 2) // 2 = SYSTEM default
+
+        isDarkMode = when (themeModeOrdinal) {
+            0 -> false // LIGHT
+            1 -> true  // DARK
+            2 -> {     // SYSTEM
+                val uiMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+            else -> false
+        }
+        println("TaskWidgetService.updateThemeMode: isDarkMode = $isDarkMode")
     }
 
     private fun extractFilename(path: String): String {
