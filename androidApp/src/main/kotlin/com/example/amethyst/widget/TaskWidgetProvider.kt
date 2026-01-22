@@ -46,6 +46,10 @@ class TaskWidgetProvider : AppWidgetProvider() {
             if (appWidgetIds.isNotEmpty()) {
                 println("TaskWidgetProvider: Updating ${appWidgetIds.size} widgets for theme change")
                 onUpdate(context, appWidgetManager, appWidgetIds)
+                // Refresh widget data to apply new theme colors to task items
+                for (appWidgetId in appWidgetIds) {
+                    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
+                }
             }
         }
     }
@@ -149,11 +153,6 @@ class TaskWidgetProvider : AppWidgetProvider() {
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
             println("TaskWidgetProvider.updateAppWidget: Called updateAppWidget")
-
-            // Notify that data should be loaded (triggers onDataSetChanged in the service)
-            // This is called AFTER the widget is fully set up to ensure the adapter is ready
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
-            println("TaskWidgetProvider.updateAppWidget: Called notifyAppWidgetViewDataChanged to trigger data load")
         }
 
         fun updateAllWidgets(context: Context) {

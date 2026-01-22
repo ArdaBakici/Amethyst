@@ -27,10 +27,12 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private var isDarkMode: Boolean = false
 
     override fun onCreate() {
-        println("TaskWidgetService.onCreate: Creating widget factory")
-        // Don't load tasks here - onDataSetChanged will be called by the system
-        // via notifyAppWidgetViewDataChanged when the widget is set up
+        println("TaskWidgetService.onCreate: Creating widget factory and loading initial tasks")
         updateThemeMode()
+        // Load tasks immediately so they're available when getCount() is called
+        // This ensures the widget shows tasks on first load
+        loadTasks()
+        println("TaskWidgetService.onCreate: Loaded ${tasks.size} tasks in onCreate")
     }
 
     override fun onDataSetChanged() {
