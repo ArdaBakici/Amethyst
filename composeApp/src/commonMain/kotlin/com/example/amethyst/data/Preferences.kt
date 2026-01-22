@@ -17,6 +17,7 @@ expect class PreferencesStore {
     fun getString(key: String, defaultValue: String): String
     fun saveInt(key: String, value: Int)
     fun getInt(key: String, defaultValue: Int): Int
+    fun notifyWidgetsOfThemeChange()
 }
 
 /**
@@ -64,6 +65,7 @@ class Preferences(private val store: PreferencesStore) {
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         store.saveInt(KEY_THEME_MODE, mode.ordinal)
+        store.notifyWidgetsOfThemeChange()
     }
 
     fun getFullTasksPath(): String {
