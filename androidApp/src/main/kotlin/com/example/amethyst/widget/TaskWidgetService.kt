@@ -70,15 +70,17 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
 
             views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
 
-            // Apply theme colors AFTER setting text
+            // Set checkbox state
+            views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
+
+            // Apply theme colors AFTER setting content
+            val backgroundColor = if (isDarkMode) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
             val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
             val detailsColor = if (isDarkMode) 0xFF999999.toInt() else 0xFF666666.toInt()
 
+            views.setInt(R.id.widget_task_item_background, "setBackgroundColor", backgroundColor)
             views.setTextColor(R.id.task_title, titleColor)
             views.setTextColor(R.id.task_details, detailsColor)
-
-            // Set checkbox state
-            views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
 
             // Set click intent to open the app when task is tapped
             val fillInIntent = Intent()
