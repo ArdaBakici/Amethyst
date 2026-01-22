@@ -49,11 +49,16 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     }
 
     override fun getViewAt(position: Int): RemoteViews {
-        println("TaskWidgetService.getViewAt: Creating view for position $position, tasks.size=${tasks.size}")
-
         val views = RemoteViews(context.packageName, R.layout.widget_task_item)
 
-        if (position >= 0 && position < tasks.size) {
+        try {
+            if (position < 0 || position >= tasks.size) {
+                // Return empty view with default text
+                views.setTextViewText(R.id.task_title, "")
+                views.setTextViewText(R.id.task_details, "")
+                return views
+            }
+
             val task = tasks[position]
 
             // Set task title
@@ -73,7 +78,7 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
 
-            // Apply theme colors AFTER setting content
+            // Apply theme colors
             val backgroundColor = if (isDarkMode) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
             val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
             val detailsColor = if (isDarkMode) 0xFF999999.toInt() else 0xFF666666.toInt()
@@ -82,11 +87,14 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             views.setTextColor(R.id.task_title, titleColor)
             views.setTextColor(R.id.task_details, detailsColor)
 
-            // Set click intent to open the app when task is tapped
+            // Set click intent
             val fillInIntent = Intent()
             views.setOnClickFillInIntent(R.id.widget_task_item_background, fillInIntent)
-
-            println("TaskWidgetService.getViewAt: Set task '${task.title}' at position $position")
+        } catch (e: Exception) {
+            println("TaskWidgetService.getViewAt: ERROR creating view: ${e.message}")
+            e.printStackTrace()
+            views.setTextViewText(R.id.task_title, "Error loading task")
+            views.setTextViewText(R.id.task_details, "")
         }
 
         return views
