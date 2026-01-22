@@ -51,22 +51,11 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
 
         val views = RemoteViews(context.packageName, R.layout.widget_task_item)
 
-        // Determine if dark mode is active
-        val isDark = isDarkMode(context)
-
-        // Apply theme colors
-        val itemBackgroundColor = if (isDark) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
-        val titleColor = if (isDark) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
-        val detailsColor = if (isDark) 0xFF999999.toInt() else 0xFF666666.toInt()
-
-        views.setInt(R.id.widget_task_item_background, "setBackgroundColor", itemBackgroundColor)
-
         if (position >= 0 && position < tasks.size) {
             val task = tasks[position]
 
             // Set task title
             views.setTextViewText(R.id.task_title, task.title)
-            views.setTextColor(R.id.task_title, titleColor)
 
             // Set task details
             val details = buildString {
@@ -78,7 +67,6 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
             }.trimEnd('•', ' ')
 
             views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
-            views.setTextColor(R.id.task_details, detailsColor)
 
             // Set checkbox state
             views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
@@ -91,23 +79,6 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
         }
 
         return views
-    }
-
-    private fun isDarkMode(context: Context): Boolean {
-        if (!Preferences.isInitialized) {
-            Preferences.initialize(PreferencesStore(context))
-        }
-
-        val themeMode = Preferences.instance.themeMode.value
-
-        return when (themeMode) {
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-            ThemeMode.SYSTEM -> {
-                val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                uiMode == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
     }
 
     override fun getLoadingView(): RemoteViews? {
