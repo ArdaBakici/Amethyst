@@ -78,8 +78,13 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
 
             views.setTextViewText(R.id.task_details, details.ifBlank { task.status.value })
 
-            // Set checkbox state
-            views.setBoolean(R.id.task_checkbox, "setChecked", task.status == TaskStatus.DONE)
+            // Set checkbox state using ImageView (CheckBox not supported in RemoteViews)
+            val checkboxDrawable = if (task.status == TaskStatus.DONE) {
+                android.R.drawable.checkbox_on_background
+            } else {
+                android.R.drawable.checkbox_off_background
+            }
+            views.setImageViewResource(R.id.task_checkbox, checkboxDrawable)
 
             // Apply theme colors
             val backgroundColor = if (isDarkMode) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
@@ -108,7 +113,7 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
         val views = RemoteViews(context.packageName, R.layout.widget_task_item)
         views.setTextViewText(R.id.task_title, "Loading tasks...")
         views.setTextViewText(R.id.task_details, "")
-        views.setBoolean(R.id.task_checkbox, "setChecked", false)
+        views.setImageViewResource(R.id.task_checkbox, android.R.drawable.checkbox_off_background)
 
         // Apply theme colors
         val backgroundColor = if (isDarkMode) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
