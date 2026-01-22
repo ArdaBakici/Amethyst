@@ -27,9 +27,10 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
     private var isDarkMode: Boolean = false
 
     override fun onCreate() {
-        println("TaskWidgetService.onCreate: Creating widget factory and loading initial data")
+        println("TaskWidgetService.onCreate: Creating widget factory")
+        // Don't load tasks here - onDataSetChanged will be called by the system
+        // via notifyAppWidgetViewDataChanged when the widget is set up
         updateThemeMode()
-        loadTasks()
     }
 
     override fun onDataSetChanged() {
@@ -100,9 +101,21 @@ class TaskWidgetViewsFactory(private val context: Context) : RemoteViewsService.
         return views
     }
 
-    override fun getLoadingView(): RemoteViews? {
-        println("TaskWidgetService.getLoadingView: Returning null (using default)")
-        return null
+    override fun getLoadingView(): RemoteViews {
+        println("TaskWidgetService.getLoadingView: Returning custom loading view")
+        val views = RemoteViews(context.packageName, R.layout.widget_task_item)
+        views.setTextViewText(R.id.task_title, "Loading tasks...")
+        views.setTextViewText(R.id.task_details, "")
+        views.setBoolean(R.id.task_checkbox, "setChecked", false)
+
+        // Apply theme colors
+        val backgroundColor = if (isDarkMode) 0xFF2A2A2A.toInt() else 0xFFFFFFFF.toInt()
+        val titleColor = if (isDarkMode) 0xFFE0E0E0.toInt() else 0xFF000000.toInt()
+
+        views.setInt(R.id.widget_task_item_background, "setBackgroundColor", backgroundColor)
+        views.setTextColor(R.id.task_title, titleColor)
+
+        return views
     }
 
     override fun getViewTypeCount(): Int {

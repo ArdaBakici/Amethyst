@@ -88,10 +88,6 @@ class TaskWidgetProvider : AppWidgetProvider() {
             }
             views.setRemoteAdapter(R.id.widget_task_list, listIntent)
             println("TaskWidgetProvider.setupServiceBasedAdapter: Set remote adapter with unique intent for widget $appWidgetId")
-
-            // Notify that data has changed (triggers onDataSetChanged)
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
-            println("TaskWidgetProvider.setupServiceBasedAdapter: Called notifyAppWidgetViewDataChanged")
         }
 
         fun updateAppWidget(
@@ -153,6 +149,11 @@ class TaskWidgetProvider : AppWidgetProvider() {
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
             println("TaskWidgetProvider.updateAppWidget: Called updateAppWidget")
+
+            // Notify that data should be loaded (triggers onDataSetChanged in the service)
+            // This is called AFTER the widget is fully set up to ensure the adapter is ready
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_task_list)
+            println("TaskWidgetProvider.updateAppWidget: Called notifyAppWidgetViewDataChanged to trigger data load")
         }
 
         fun updateAllWidgets(context: Context) {
